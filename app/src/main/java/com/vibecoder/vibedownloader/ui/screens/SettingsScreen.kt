@@ -55,7 +55,7 @@ fun SettingsScreen(prefs: Prefs) {
 
         SectionLabel("Speed")
         GlassCard(Modifier.fillMaxWidth()) {
-            SliderRow(Icons.Rounded.Lan, "Connections per file", "More parts can be faster on servers that allow it.",
+            SliderRow(Icons.Rounded.Lan, "Connections per file", "More parts, faster downloads.",
                 connections, 1f..16f, 14) { connections = it; prefs.connections = it.roundToInt() }
             Spacer(Modifier.height(16.dp))
             SliderRow(Icons.Rounded.Layers, "Downloads at the same time", "Others wait in the queue.",
@@ -73,7 +73,7 @@ fun SettingsScreen(prefs: Prefs) {
         Spacer(Modifier.height(20.dp))
         SectionLabel("App")
         GlassCard(Modifier.fillMaxWidth()) {
-            SwitchRow(Icons.Rounded.SystemUpdate, "Check for updates automatically", "You choose when to install.", autoUpdate) { autoUpdate = it; prefs.autoUpdate = it }
+            SwitchRow(Icons.Rounded.SystemUpdate, "Check for updates", "You choose when to install.", autoUpdate) { autoUpdate = it; prefs.autoUpdate = it }
             Spacer(Modifier.height(14.dp))
             InfoRow(Icons.Rounded.Info, "VibeDownloader for Android", "Version ${BuildConfig.VERSION_NAME}  ·  by VibeCoder AI")
         }
@@ -94,12 +94,15 @@ private fun SliderRow(
                 Text(title, style = MaterialTheme.typography.titleMedium, color = Vd.Text)
                 Text(hint, style = MaterialTheme.typography.bodySmall, color = Vd.Muted)
             }
+            Spacer(Modifier.width(12.dp))
             Text(value.roundToInt().toString(), style = MaterialTheme.typography.titleLarge, color = Vd.Accent2)
         }
+        Spacer(Modifier.height(4.dp))
         Slider(
             value = value, onValueChange = onChange, valueRange = range, steps = steps,
             colors = SliderDefaults.colors(thumbColor = Vd.AccentLight, activeTrackColor = Vd.Accent, inactiveTrackColor = Vd.Line,
-                activeTickColor = Vd.AccentLight, inactiveTickColor = Vd.CardHi),
+                activeTickColor = androidx.compose.ui.graphics.Color.Transparent,
+                inactiveTickColor = androidx.compose.ui.graphics.Color.Transparent),
         )
     }
 }

@@ -12,3 +12,7 @@ out/
 .env
 .env.*
 *.log
+# screenshots sent for checking (not part of the app)
+photo_*.jpg
+Screenshot_*.jpg
+Screenshot_*.png
