@@ -24,6 +24,7 @@ enum class Problem(val message: String, val retryable: Boolean) {
     Private("This video is private or was removed", false),
     Unavailable("This video is private or was removed", true),
     SignIn("This site needs you to be signed in", true),
+    BotCheck("YouTube wants to check this connection. Please try again in a minute, or switch between Wi-Fi and mobile data.", true),
     AgeLimit("This video is age-restricted and needs a signed-in account", true),
     Country("This video isn't available in your country", false),
     Live("Live streams can only be downloaded after they end", false),
@@ -76,6 +77,8 @@ enum class Problem(val message: String, val retryable: Boolean) {
                 "drm" in m -> Protected
                 "video unavailable" in m || "this video is unavailable" in m || "content isn't available" in m -> Unavailable
                 "live event" in m || "is live now" in m || "premieres in" in m || "will begin in" in m -> Live
+                // YouTube's "Sign in to confirm you're not a bot" is about the network, not an account
+                "not a bot" in m || "confirm you’re not" in m || "confirm you're not" in m -> BotCheck
                 "sign in" in m || "log in" in m || "login required" in m || "logged-in" in m ||
                     "cookies" in m || "authentication" in m || "registered users" in m -> SignIn
                 "http error 429" in m || "too many requests" in m -> Busy
