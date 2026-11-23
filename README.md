@@ -21,4 +21,4 @@ VibeDownloader is not on the Play Store; it is published only here and on the [V
 Kotlin + Jetpack Compose. Every release is built by GitHub Actions into a signed APK; the signing key is kept in GitHub Secrets, never in this repository.
 
 ## License
-Proprietary, all rights reserved. You may install and use the official app; you may **not** modify, copy, rebrand or redistribute it. See [LICENSE](LICENSE).
+Proprietary, all rights reserved. You may install and use the official app for your own personal use. You may **not** copy, modify, decompile, re-sign, repackage, rebrand, upload to any app store or website, sell or redistribute it, or use its code or design to build or train anything else. Viewing the public source code gives no right to use it. See [LICENSE](LICENSE).

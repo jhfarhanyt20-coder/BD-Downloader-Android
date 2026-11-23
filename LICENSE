@@ -3,81 +3,104 @@ Copyright (c) 2026 JH Farhan (VibeCoder AI). All rights reserved.
 PROPRIETARY SOFTWARE LICENSE - VIBEDOWNLOADER FOR ANDROID
 
 This software, including its source code, object code, app packages (APK),
-documentation, user interface text, visual assets, configuration and all
-other related materials (collectively, the "Software"), is the exclusive
-property of JH Farhan (VibeCoder AI) and is protected by copyright and other
-intellectual property laws. The Software is licensed, not sold.
+documentation, user interface text, screens, layouts, visual design, icons,
+names, logos and all other related materials (collectively, the "Software"),
+is the exclusive property of JH Farhan (VibeCoder AI) and is protected by
+copyright, trademark and other intellectual property laws. The Software is
+licensed, not sold. By installing or using the Software you agree to this
+license. If you do not agree, do not install or use it.
 
-1. USE OF THE OFFICIAL APP
+1. WHAT YOU MAY DO
 
    You may download the official, unmodified VibeDownloader for Android app
-   (APK) from the official release page
+   (APK) only from the official release page
    (github.com/jhfarhanyt20-coder/VibeDownloader-Android/releases) or the
-   official website, install it, and use the installed application on devices
-   you own or control. This permission covers the official
-   application only, as it is published, and ends if you break this license.
+   official website (vibecoderai.onrender.com), install it, and use it for
+   your own personal use on devices you own or control. Nothing else is
+   permitted.
 
-2. NO OTHER LICENSE GRANTED
+2. WHAT YOU MAY NOT DO
 
-   No other permission or license, express or implied, is granted to any
-   person or entity to copy, reproduce, modify, adapt, translate, merge,
-   publish, distribute, transmit, sublicense, sell, rent, lease, host as a
-   service, or otherwise exploit the Software, in whole or in part, for any
-   purpose, without the prior written permission of the copyright holder.
+   Without the prior written permission of the copyright holder you may not,
+   in whole or in part, directly or through anyone else:
 
-3. NO MODIFICATIONS OR DERIVATIVE WORKS
+   a) copy, reproduce, modify, adapt, translate, port or create derivative
+      works of the Software or its source code, design or user interface;
+   b) decompile, disassemble, reverse engineer, decode or unpack the APK,
+      or try to obtain its source code by any means, except where the law
+      expressly allows it despite this restriction;
+   c) re-sign, repackage, patch, "mod", crack, unlock, inject code or ads
+      into, or otherwise alter the APK, or remove or bypass any check,
+      update mechanism, notice or protection in it;
+   d) publish, upload, mirror or distribute the Software or any APK of it on
+      any app store, website, file-sharing service, forum, chat group or
+      other channel (including Google Play, APKPure, APKMirror, Uptodown
+      and similar), whether free or paid;
+   e) sell, rent, lease, lend, sublicense, host as a service or otherwise
+      commercially exploit the Software;
+   f) rebrand it, publish it or any part of it under another name, or use
+      the names "VibeDownloader", "VibeCoder" or their logos for any other
+      product, app, website or account;
+   g) remove, hide or change any copyright notice, license text, name,
+      logo or branding;
+   h) use the source code, screens or design to build, train or improve
+      any other software, product or machine-learning / AI model, or include
+      it in any dataset;
+   i) use the Software to break the law or the rights of others.
 
-   You may not modify the Software, create derivative works from it, rebrand
-   it, remove or change its copyright notices or branding, redistribute
-   modified or unmodified copies of it, re-upload it to any other website,
-   store or service, or reverse engineer, decompile, or disassemble it, except
-   to the limited extent that applicable law expressly prohibits such
-   restriction.
+3. SOURCE CODE IS PUBLIC, BUT NOT FREE
 
-4. VIEWING IS NOT A LICENSE
+   The source code is shown in a public repository only so that the app can
+   update itself and so its safety can be checked. Viewing, cloning or
+   forking the repository on the hosting platform does not give you any
+   right to use, change, build, sign or distribute the code or any app made
+   from it. Building and distributing your own version is not allowed.
+   All rights not expressly granted in section 1 are reserved.
 
-   The Software's source code is made available in a public repository so the
-   application can update itself and so its safety can be checked. Merely
-   viewing, accessing, cloning, forking on the hosting platform, or
-   downloading the source does not grant any license or right to use, change,
-   or distribute it beyond the limited rights that the hosting platform's
-   terms of service require. All other rights are expressly reserved.
+4. CONTENT YOU DOWNLOAD
+
+   You are solely responsible for what you download with the Software. Only
+   download content you own or have the right to download, and follow the
+   terms of the websites you use (for example YouTube's Terms of Service)
+   and the copyright laws of your country. The copyright holder does not
+   host, provide or control any content and is not responsible for how you
+   use the Software.
 
 5. THIRD-PARTY COMPONENTS
 
-   VibeDownloader includes or uses third-party programs and libraries, such as
-   yt-dlp, FFmpeg and Python packages. Each of them remains under its own
-   license (see THIRD_PARTY_NOTICES.md and tools/licenses). Nothing in this
-   license limits the rights those licenses give you for those components.
-   You are responsible for using the Software only to download content you
-   have the right to download.
+   The Software includes third-party components (such as yt-dlp, Python,
+   Chaquopy, OkHttp and AndroidX). Each is used under its own license, shown
+   in the app under Settings > Licenses. Nothing in this license limits the
+   rights those licenses give you for those components alone.
 
 6. UPDATES
 
-   The Software may check the official release page for updates and install
-   them. Each update is covered by this license.
+   The Software may check the official release page, download new versions
+   and offer to install them. Every update is covered by this license.
 
-7. NO WARRANTY
+7. TERMINATION
+
+   This license ends automatically, without notice, if you break any of its
+   terms. You must then stop using the Software and delete every copy. The
+   copyright holder may take legal action for any breach, including asking
+   for removal of copies published anywhere.
+
+8. NO WARRANTY
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+   FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT.
 
-8. LIMITATION OF LIABILITY
+9. LIMITATION OF LIABILITY
 
    TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE
-   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
-   WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF,
-   OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-   SOFTWARE.
-
-9. TERMINATION
-
-   This license ends automatically if you break any of its terms. You must
-   then stop using the Software and delete all copies.
+   COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, LOSS OF DATA OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
 
 10. CONTACT
 
-   For permission requests, contact the copyright holder through the official
-   repository (github.com/jhfarhanyt20-coder/VibeDownloader-Android) or website
+   For permission requests, or to report a copy published without
+   permission, contact the copyright holder through the official repository
+   (github.com/jhfarhanyt20-coder/VibeDownloader-Android) or the website
    (vibecoderai.onrender.com).

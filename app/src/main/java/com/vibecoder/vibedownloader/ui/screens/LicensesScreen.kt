@@ -54,6 +54,22 @@ fun LicensesScreen(onBack: () -> Unit) {
                 Text("Open-source parts inside VibeDownloader.", style = MaterialTheme.typography.bodyMedium, color = Vd.Muted)
             }
         }
+        // the app's own license first: proprietary, all rights reserved
+        GlassCard(Modifier.fillMaxWidth(), padding = 16) {
+            Text("VibeDownloader for Android", style = MaterialTheme.typography.titleMedium, color = Vd.Text)
+            Text("Proprietary license · All rights reserved", style = MaterialTheme.typography.labelMedium, color = Vd.Accent2)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Copyright (c) 2026 JH Farhan (VibeCoder AI). You may install and use the official app from the official release " +
+                    "page or website for your own personal use. You may not copy, modify, decompile, re-sign, repackage, rebrand, " +
+                    "upload to any app store or website, sell or redistribute it, or use its code or design to build or train anything " +
+                    "else. You are responsible for only downloading content you have the right to download. " +
+                    "Full text: github.com/jhfarhanyt20-coder/VibeDownloader-Android/blob/main/LICENSE",
+                style = MaterialTheme.typography.bodySmall, color = Vd.Muted,
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Text("OPEN-SOURCE PARTS", style = MaterialTheme.typography.labelMedium, color = Vd.Faint, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Notices.forEach { n ->
                 GlassCard(Modifier.fillMaxWidth(), padding = 16) {
