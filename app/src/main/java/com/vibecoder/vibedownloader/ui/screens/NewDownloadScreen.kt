@@ -94,6 +94,7 @@ fun NewDownloadScreen(
     sharedLink: String?,
     onSharedLinkUsed: () -> Unit,
     requestStart: (start: () -> Unit) -> Unit = { it() },
+    onShowItem: (String) -> Unit = {},
     onStarted: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -114,10 +115,13 @@ fun NewDownloadScreen(
     LaunchedEffect(Unit) {
         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val text = runCatching { cm.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() }.getOrNull()
-        clipboardLink = extractLink(text)
+        clipboardLink = if (com.vibecoder.vibedownloader.extractLinks(text).size > 1) text else extractLink(text)
     }
 
-    val url = extractLink(link)
+    val links = remember(link) { com.vibecoder.vibedownloader.extractLinks(link) }
+    val many = links.size >= 2
+    val batch = rememberBatchState(com.vibecoder.vibedownloader.Prefs(context).batchQuality)
+    val url = if (many) null else extractLink(link)
     // look at the link shortly after typing stops (at once for shared links)
     LaunchedEffect(url, retry) {
         analysis = null
@@ -133,11 +137,28 @@ fun NewDownloadScreen(
         }
     }
 
-    fun start() {
-        val a = analysis ?: return
-        val item = itemFor(a, selected) ?: return
+    val item = remember(analysis, selected) { analysis?.let { itemFor(it, selected) } }
+    val dup = rememberDuplicate(item)
+    var again by remember(url) { mutableStateOf(false) }
+
+    fun startItem(d: DownloadItem) {
         requestStart {
-            scope.launch(Dispatchers.IO) { DownloadQueue.add(item) }
+            scope.launch(Dispatchers.IO) { DownloadQueue.add(d) }
+            link = ""
+            analysis = null
+            onStarted()
+        }
+    }
+
+    fun start() { item?.let { startItem(it) } }
+
+    fun startBatch() {
+        val list = batch.items(links)
+        if (list.isEmpty()) return
+        com.vibecoder.vibedownloader.Prefs(context).batchQuality = batch.quality
+        requestStart {
+            scope.launch(Dispatchers.IO) { DownloadQueue.addAll(list) }
+            android.widget.Toast.makeText(context, "${list.size} downloads added to the queue", android.widget.Toast.LENGTH_SHORT).show()
             link = ""
             analysis = null
             onStarted()
@@ -145,7 +166,7 @@ fun NewDownloadScreen(
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        PageHeader("New download", "Paste a link to a file, a video or a song.")
+        PageHeader("New download", "Paste a link to a file, a video or a song. Paste many links to queue them all.")
 
         GlassCard(Modifier.fillMaxWidth()) {
             SectionLabel("Link")
@@ -160,9 +181,10 @@ fun NewDownloadScreen(
                         Icon(Icons.Rounded.Close, "Clear", tint = Vd.Muted)
                     }
                 },
-                singleLine = true,
+                singleLine = false,
+                maxLines = 6,
                 shape = RoundedCornerShape(14.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Default),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Vd.AccentLight, unfocusedBorderColor = Vd.Line,
                     focusedContainerColor = Vd.Bg, unfocusedContainerColor = Vd.Bg,
@@ -193,6 +215,7 @@ fun NewDownloadScreen(
 
         Spacer(Modifier.height(16.dp))
         val stage = when {
+            many -> "many"
             analyzing -> "loading"
             analysis is Analysis.File -> "file"
             analysis is Analysis.Media -> "media"
@@ -210,17 +233,31 @@ fun NewDownloadScreen(
                     "file" -> (analysis as? Analysis.File)?.let { FileCard(it) }
                     "media" -> (analysis as? Analysis.Media)?.let { MediaCard(it, selected) { k -> selected = k } }
                     "problem" -> (analysis as? Analysis.Problem)?.let { ProblemCard(it.message) { retry++ } }
+                    "many" -> MultiLinkCard(links, batch, onAdd = { startBatch() })
                 }
                 if (s != "none") Spacer(Modifier.height(16.dp))
             }
         }
 
-        val ready = analysis is Analysis.File || analysis is Analysis.Media
-        GradientButton(
-            if (analyzing) "Looking at the link..." else "Start download", Icons.Rounded.Download,
-            onClick = { start() },
-            modifier = Modifier.fillMaxWidth(), enabled = ready && !analyzing,
-        )
+        AnimatedVisibility(!many && dup != null && !again, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            Column {
+                dup?.let { m ->
+                    DuplicateCard(m, onShow = onShowItem, onDownloadAgain = {
+                        again = true
+                        item?.let { startItem(it.copy(id = UUID.randomUUID().toString())) }
+                    })
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+        }
+        AnimatedVisibility(!many && (dup == null || again), enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            val ready = analysis is Analysis.File || analysis is Analysis.Media
+            GradientButton(
+                if (analyzing) "Looking at the link..." else "Start download", Icons.Rounded.Download,
+                onClick = { start() },
+                modifier = Modifier.fillMaxWidth(), enabled = ready && !analyzing,
+            )
+        }
         Spacer(Modifier.height(24.dp))
     }
 }
@@ -324,6 +361,7 @@ internal fun itemFor(a: Analysis, selected: String): DownloadItem? = when (a) {
         id = UUID.randomUUID().toString(), url = a.url, kind = Kind.Media, title = a.title, fileName = "",
         site = a.site, thumbnail = a.thumbnail, quality = selected, duration = a.duration,
         total = a.qualities.firstOrNull { it.key == selected }?.size ?: 0,
+        keys = com.vibecoder.vibedownloader.engine.Duplicates.mediaKeys(a.webpage, a.site, a.mediaId),
     )
     is Analysis.Problem -> null
 }

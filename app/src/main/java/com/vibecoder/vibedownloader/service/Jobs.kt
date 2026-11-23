@@ -53,7 +53,7 @@ class FileJob(
                 if (probe.isHtml) {
                     // the link was a web page after all: let yt-dlp look for a video on it
                     AppLog.i("file", "${item.id} is a web page; trying the media engine")
-                    DownloadRepository.update(item.id) { it.copy(kind = Kind.Media, quality = "best") }
+                    DownloadRepository.update(item.id) { it.copy(kind = Kind.Media, quality = it.quality.ifBlank { "best" }) }
                     val media = DownloadRepository.get(item.id) ?: return JobResult.Failed(Problem.Unknown)
                     return MediaJob(app, media, work, control).run()
                 }
@@ -181,6 +181,8 @@ class MediaJob(
         val files = r.optJSONArray("files") ?: return JobResult.Failed(Problem.Unknown)
         val mode = r.optString("mode")
         val title = r.optString("title").ifBlank { item.title }.ifBlank { "video" }
+        // links added in a batch start with a placeholder title; show the real one now
+        r.optString("title").takeIf { it.isNotBlank() }?.let { t -> DownloadRepository.update(item.id) { it.copy(title = t) } }
         DownloadQueue.note(item.id, Status.Finishing, "Finishing up")
         val first = File(files.getJSONObject(0).getString("path"))
         val out: File

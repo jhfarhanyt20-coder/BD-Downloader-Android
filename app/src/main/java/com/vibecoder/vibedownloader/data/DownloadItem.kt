@@ -36,6 +36,10 @@ data class DownloadItem(
     val duration: Long = 0,
     /** Was running when the app was closed; continues on the next start. */
     val interrupted: Boolean = false,
+    /** Place in the queue: smaller starts first (the user can move items up and down). */
+    val order: Long = createdAt,
+    /** Extra duplicate-check keys, space separated (the media id and page address found by the engine). */
+    val keys: String = "",
 ) {
     val progress: Float get() = if (total > 0) (downloaded.toFloat() / total).coerceIn(0f, 1f) else 0f
     val etaSeconds: Long get() = if (speed > 0 && total > downloaded) (total - downloaded) / speed else 0
@@ -47,6 +51,7 @@ data class DownloadItem(
         .put("total", total).put("note", note ?: "").put("createdAt", createdAt)
         .put("finishedAt", finishedAt).put("savedUri", savedUri ?: "").put("savedPath", savedPath ?: "")
         .put("mime", mime).put("duration", duration).put("interrupted", interrupted)
+        .put("order", order).put("keys", keys)
 
     companion object {
         fun fromJson(o: JSONObject): DownloadItem? = runCatching {
@@ -70,6 +75,8 @@ data class DownloadItem(
                 mime = o.optString("mime"),
                 duration = o.optLong("duration"),
                 interrupted = o.optBoolean("interrupted"),
+                order = o.optLong("order", o.optLong("createdAt", System.currentTimeMillis())),
+                keys = o.optString("keys"),
             )
         }.getOrNull()
     }

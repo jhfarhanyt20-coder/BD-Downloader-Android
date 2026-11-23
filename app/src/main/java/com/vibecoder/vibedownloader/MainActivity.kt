@@ -1,50 +1,25 @@
 package com.vibecoder.vibedownloader
 
-import android.content.Intent
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.SystemUpdate
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.lifecycleScope
-import com.vibecoder.vibedownloader.data.DownloadRepository
-import com.vibecoder.vibedownloader.engine.AppLog
-import com.vibecoder.vibedownloader.engine.EngineUpdater
-import com.vibecoder.vibedownloader.engine.MediaEngine
-import com.vibecoder.vibedownloader.service.DownloadQueue
-import com.vibecoder.vibedownloader.service.Notifier
-import com.vibecoder.vibedownloader.ui.components.GradientButton
-import com.vibecoder.vibedownloader.ui.components.SoftButton
-import com.vibecoder.vibedownloader.ui.screens.LicensesScreen
-import com.vibecoder.vibedownloader.update.AppUpdater
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -56,8 +31,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -66,11 +43,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.DownloadForOffline
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,31 +69,57 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import com.vibecoder.vibedownloader.data.DownloadRepository
+import com.vibecoder.vibedownloader.engine.Analysis
+import com.vibecoder.vibedownloader.engine.AppLog
+import com.vibecoder.vibedownloader.engine.EngineUpdater
+import com.vibecoder.vibedownloader.engine.MediaEngine
+import com.vibecoder.vibedownloader.service.BubbleService
+import com.vibecoder.vibedownloader.service.DownloadQueue
+import com.vibecoder.vibedownloader.service.Notifier
+import com.vibecoder.vibedownloader.ui.components.GradientButton
+import com.vibecoder.vibedownloader.ui.components.SoftButton
+import com.vibecoder.vibedownloader.ui.screens.BrowserScreen
+import com.vibecoder.vibedownloader.ui.screens.BrowserState
 import com.vibecoder.vibedownloader.ui.screens.DownloadsScreen
+import com.vibecoder.vibedownloader.ui.screens.LicensesScreen
 import com.vibecoder.vibedownloader.ui.screens.NewDownloadScreen
 import com.vibecoder.vibedownloader.ui.screens.SettingsScreen
+import com.vibecoder.vibedownloader.ui.sheet.DownloadSheet
 import com.vibecoder.vibedownloader.ui.theme.Vd
 import com.vibecoder.vibedownloader.ui.theme.VibeTheme
+import com.vibecoder.vibedownloader.ui.theme.applySystemBars
+import com.vibecoder.vibedownloader.update.AppUpdater
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
-    // a link shared from another app; the New download page picks it up
+    // a link (or several) shared from another app; the New download page picks it up
     private val sharedLink = mutableStateOf<String?>(null)
+    // a download to show (from a notification, the share sheet or a duplicate card)
+    private val showId = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // the app is always dark, so the clock and status icons are always light
-        enableEdgeToEdge(
-            statusBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-            navigationBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-        )
+        // colours and bar icons are ready before the first frame, so nothing flickers
+        Vd.prepare(this)
+        applySystemBars(Vd.isDark)
         readShare(intent)
         val prefs = Prefs(this)
         setContent {
             VibeTheme {
-                App(prefs, sharedLink.value) { sharedLink.value = null }
+                App(prefs, sharedLink.value, { sharedLink.value = null }, showId.value) { showId.value = null }
             }
         }
+        BubbleService.startIfEnabled(this)
     }
 
     override fun onResume() {
@@ -122,27 +135,46 @@ class MainActivity : ComponentActivity() {
 
     private fun readShare(intent: Intent?) {
         if (intent?.action == Intent.ACTION_SEND) {
-            extractLink(intent.getStringExtra(Intent.EXTRA_TEXT))?.let { sharedLink.value = it }
+            val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+            // many links stay together, so the New page can offer "Add all to queue"
+            if (extractLinks(text).size > 1) sharedLink.value = text
+            else extractLink(text)?.let { sharedLink.value = it }
         }
+        intent?.getStringExtra(EXTRA_SHOW_ID)?.let { showId.value = it }
+    }
+
+    companion object {
+        const val EXTRA_SHOW_ID = "show_id"
     }
 }
+
+/** A download sheet opened inside the app (from the browser). */
+private data class InAppSheet(val text: String, val file: Analysis.File? = null, val nonce: Long = System.nanoTime())
 
 private enum class Tab(val label: String, val icon: ImageVector) {
     Downloads("Downloads", Icons.Rounded.DownloadForOffline),
     New("New", Icons.Rounded.AddCircle),
+    Browser("Browser", Icons.Rounded.Public),
     Settings("Settings", Icons.Rounded.Settings),
 }
 
 @Composable
-private fun App(prefs: Prefs, sharedLink: String?, onSharedLinkUsed: () -> Unit) {
+private fun App(prefs: Prefs, sharedLink: String?, onSharedLinkUsed: () -> Unit, showId: String?, onShowIdUsed: () -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(Tab.Downloads.ordinal) }
     var showLicenses by rememberSaveable { mutableStateOf(false) }
+    var highlight by remember { mutableStateOf<String?>(null) }
+    var sheet by remember { mutableStateOf<InAppSheet?>(null) }
     val context = LocalContext.current
+    val browser = remember { BrowserState() }
+    DisposableEffect(Unit) { onDispose { browser.destroy() } }
+    browser.onFile = { f -> sheet = InAppSheet(f.url, f) }
+    val showItem: (String) -> Unit = { id -> highlight = id; tab = Tab.Downloads.ordinal }
     // a shared link jumps straight to the New download page
-    androidx.compose.runtime.LaunchedEffect(sharedLink) { if (sharedLink != null) tab = Tab.New.ordinal }
+    LaunchedEffect(sharedLink) { if (sharedLink != null) tab = Tab.New.ordinal }
+    LaunchedEffect(showId) { if (showId != null) { showItem(showId); onShowIdUsed() } }
 
     // background start-up work, never on the main thread
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         DownloadRepository.loaded.first { it }
         DownloadQueue.resumeInterrupted()
         delay(1500)
@@ -173,32 +205,46 @@ private fun App(prefs: Prefs, sharedLink: String?, onSharedLinkUsed: () -> Unit)
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Vd.Bg).statusBarsPadding()) {
-        Box(Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp)) {
-            AnimatedContent(
-                targetState = tab,
-                transitionSpec = {
-                    val dir = if (targetState > initialState) 1 else -1
-                    (slideInHorizontally(tween(280)) { it / 8 * dir } + fadeIn(tween(280)))
-                        .togetherWith(slideOutHorizontally(tween(200)) { -it / 8 * dir } + fadeOut(tween(200)))
-                },
-                label = "page",
-            ) { page ->
-                when (Tab.entries[page]) {
-                    Tab.Downloads -> DownloadsScreen(onNew = { tab = Tab.New.ordinal })
-                    Tab.New -> NewDownloadScreen(sharedLink, onSharedLinkUsed, requestStart) { tab = Tab.Downloads.ordinal }
-                    Tab.Settings -> AnimatedContent(
-                        targetState = showLicenses,
-                        transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(180)) },
-                        label = "settingsPage",
-                    ) { licenses ->
-                        if (licenses) LicensesScreen { showLicenses = false }
-                        else SettingsScreen(prefs) { showLicenses = true }
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().background(Vd.Bg).statusBarsPadding()) {
+            Box(Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp)) {
+                AnimatedContent(
+                    targetState = tab,
+                    transitionSpec = {
+                        val dir = if (targetState > initialState) 1 else -1
+                        (slideInHorizontally(tween(280)) { it / 8 * dir } + fadeIn(tween(280)))
+                            .togetherWith(slideOutHorizontally(tween(200)) { -it / 8 * dir } + fadeOut(tween(200)))
+                    },
+                    label = "page",
+                ) { page ->
+                    when (Tab.entries[page]) {
+                        Tab.Downloads -> DownloadsScreen(onNew = { tab = Tab.New.ordinal }, highlightId = highlight) { highlight = null }
+                        Tab.New -> NewDownloadScreen(sharedLink, onSharedLinkUsed, requestStart, onShowItem = showItem) { tab = Tab.Downloads.ordinal }
+                        Tab.Browser -> BrowserScreen(browser) { url -> sheet = InAppSheet(url) }
+                        Tab.Settings -> AnimatedContent(
+                            targetState = showLicenses,
+                            transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(180)) },
+                            label = "settingsPage",
+                        ) { licenses ->
+                            if (licenses) LicensesScreen { showLicenses = false }
+                            else SettingsScreen(prefs) { showLicenses = true }
+                        }
                     }
                 }
             }
+            BottomBar(tab) { tab = it }
         }
-        BottomBar(tab) { tab = it }
+
+        // the same quality sheet as the share popup, as a bottom sheet inside the app
+        sheet?.let { s ->
+            var text by remember(s) { mutableStateOf(s.text) }
+            DownloadSheet(
+                text = text, onTextChange = { text = it }, prefs = prefs,
+                presetFile = s.file, inApp = true,
+                onClose = { sheet = null },
+                onShowItem = { id -> sheet = null; showItem(id) },
+            )
+        }
     }
 
     if (askNotifications) {
@@ -300,27 +346,29 @@ private fun InstallPermissionSheet() {
     }
 }
 
+/** The pill bar: the selected tab grows smoothly and shows its name. */
 @Composable
 private fun BottomBar(selected: Int, onSelect: (Int) -> Unit) {
     val shape = RoundedCornerShape(26.dp)
     Row(
         Modifier
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
             .fillMaxWidth()
             .clip(shape)
             .background(Vd.Surface)
             .border(1.dp, Vd.Line, shape)
-            .padding(6.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
+            .padding(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Tab.entries.forEach { t ->
             val on = t.ordinal == selected
-            val bg by animateColorAsState(if (on) Color(0x336A3DF5) else Color.Transparent, tween(220), label = "tabBg")
+            val bg by animateColorAsState(if (on) Vd.AccentSelected else Color.Transparent, tween(220), label = "tabBg")
             val fg by animateColorAsState(if (on) Vd.Text else Vd.Faint, tween(220), label = "tabFg")
+            val w by animateFloatAsState(if (on) 2f else 1f, tween(260), label = "tabW")
             Row(
                 Modifier
-                    .weight(1f)
+                    .weight(w)
                     .clip(RoundedCornerShape(20.dp))
                     .background(bg)
                     .clickable(remember { MutableInteractionSource() }, null) { onSelect(t.ordinal) }
@@ -329,8 +377,12 @@ private fun BottomBar(selected: Int, onSelect: (Int) -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(t.icon, t.label, tint = if (on) Vd.AccentLight else fg, modifier = Modifier.size(22.dp))
-                if (on) {
-                    Text("  " + t.label, style = MaterialTheme.typography.labelLarge, color = fg)
+                AnimatedVisibility(
+                    on,
+                    enter = fadeIn(tween(200)) + expandHorizontally(tween(240)),
+                    exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
+                ) {
+                    Text("  " + t.label, style = MaterialTheme.typography.labelLarge, color = fg, maxLines = 1, softWrap = false)
                 }
             }
         }

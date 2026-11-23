@@ -122,8 +122,11 @@ fun Pill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     detail: String? = null,
+    compact: Boolean = false,
+    icon: ImageVector? = null,
+    iconTint: Color? = null,
 ) {
-    val bg by animateColorAsState(if (selected) Color(0x336A3DF5) else Vd.CardHi, tween(220), label = "pillBg")
+    val bg by animateColorAsState(if (selected) Vd.AccentSelected else Vd.CardHi, tween(220), label = "pillBg")
     val line by animateColorAsState(if (selected) Vd.AccentLight else Vd.Line, tween(220), label = "pillLine")
     val fg by animateColorAsState(if (selected) Vd.Text else Vd.Muted, tween(220), label = "pillFg")
     val shape = RoundedCornerShape(14.dp)
@@ -133,10 +136,19 @@ fun Pill(
             .background(bg)
             .border(1.dp, line, shape)
             .clickable(role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = if (detail != null) 10.dp else 8.dp),
+            .padding(horizontal = if (compact) 6.dp else 14.dp, vertical = if (detail != null) 10.dp else 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = fg, maxLines = 1)
+        if (icon != null) {
+            androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, null, tint = iconTint ?: fg, modifier = Modifier.size(16.dp))
+                androidx.compose.foundation.layout.Spacer(Modifier.size(6.dp))
+                Text(label, style = MaterialTheme.typography.labelLarge, color = fg, maxLines = 1)
+            }
+        } else {
+            Text(label, style = if (compact) MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                else MaterialTheme.typography.labelLarge, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
         if (detail != null) {
             Text(detail, style = MaterialTheme.typography.bodySmall, color = if (selected) Vd.Accent2 else Vd.Faint, maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
@@ -179,20 +191,22 @@ object Thumbs {
 
 /** A thumbnail that fades in once loaded; a type icon until then (or when there is none). */
 @Composable
-fun Thumbnail(url: String?, fallback: ImageVector, modifier: Modifier = Modifier, corner: Dp = 14.dp) {
+fun Thumbnail(url: String?, fallback: ImageVector, modifier: Modifier = Modifier, corner: Dp = 14.dp, tint: Color? = null) {
     val context = LocalContext.current
     var image by remember(url) { mutableStateOf(Thumbs.peek(url)) }
     LaunchedEffect(url) {
         if (image == null && url != null) image = Thumbs.load(context, url)
     }
     val shape = RoundedCornerShape(corner)
-    Box(modifier.clip(shape).background(Color(0x226A3DF5)).border(1.dp, Color(0x336A3DF5), shape), contentAlignment = Alignment.Center) {
+    val soft = tint?.copy(alpha = if (Vd.isDark) 0.14f else 0.11f) ?: Vd.AccentSoft
+    val line = tint?.copy(alpha = if (Vd.isDark) 0.26f else 0.2f) ?: Vd.AccentSoftLine
+    Box(modifier.clip(shape).background(soft).border(1.dp, line, shape), contentAlignment = Alignment.Center) {
         Crossfade(image, animationSpec = tween(350), label = "thumb") { img ->
             if (img != null) {
                 Image(img, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             } else {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(fallback, null, tint = Vd.AccentLight, modifier = Modifier.size(26.dp))
+                    Icon(fallback, null, tint = tint ?: Vd.AccentLight, modifier = Modifier.size(26.dp))
                 }
             }
         }

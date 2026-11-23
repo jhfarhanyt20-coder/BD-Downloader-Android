@@ -127,12 +127,15 @@ fun PageHeader(title: String, subtitle: String) {
 /** Round icon "badge" with the accent glow. */
 @Composable
 fun IconBadge(icon: ImageVector, size: Int = 44, tint: Color = Vd.AccentLight) {
+    // the soft background takes the icon's colour (purple by default, category colours on cards)
+    val soft = if (tint == Vd.AccentLight) Vd.AccentSoft else tint.copy(alpha = if (Vd.isDark) 0.14f else 0.11f)
+    val line = if (tint == Vd.AccentLight) Vd.AccentSoftLine else tint.copy(alpha = if (Vd.isDark) 0.24f else 0.2f)
     Box(
         Modifier
             .size(size.dp)
             .clip(RoundedCornerShape((size / 3).dp))
-            .background(Color(0x226A3DF5))
-            .border(1.dp, Color(0x336A3DF5), RoundedCornerShape((size / 3).dp)),
+            .background(soft)
+            .border(1.dp, line, RoundedCornerShape((size / 3).dp)),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, null, tint = tint, modifier = Modifier.size((size / 2).dp))

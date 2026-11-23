@@ -72,6 +72,23 @@ import com.vibecoder.vibedownloader.ui.components.PageHeader
 import com.vibecoder.vibedownloader.ui.components.SectionLabel
 import com.vibecoder.vibedownloader.ui.theme.Vd
 import kotlin.math.roundToInt
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.rounded.BrightnessAuto
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.draw.clip
+import com.vibecoder.vibedownloader.service.BubbleService
+import com.vibecoder.vibedownloader.ui.components.Pill
+import com.vibecoder.vibedownloader.ui.theme.ThemeMode
 
 @Composable
 fun SettingsScreen(prefs: Prefs, onLicenses: () -> Unit = {}) {
@@ -89,14 +106,37 @@ fun SettingsScreen(prefs: Prefs, onLicenses: () -> Unit = {}) {
     var autoUpdate by remember { mutableStateOf(prefs.autoUpdate) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
-        PageHeader("Settings", "Speed, network and updates.")
+        PageHeader("Settings", "Look, speed, network and updates.")
 
+        SectionLabel("Appearance")
+        GlassCard(Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconBadge(Icons.Rounded.Palette, size = 38)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Theme", style = MaterialTheme.typography.titleMedium, color = Vd.Text)
+                    Text("Dark, light, or the same as your phone.", style = MaterialTheme.typography.bodySmall, color = Vd.Muted)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                listOf(
+                    ThemeMode.System to Icons.Rounded.BrightnessAuto,
+                    ThemeMode.Light to Icons.Rounded.LightMode,
+                    ThemeMode.Dark to Icons.Rounded.DarkMode,
+                ).forEach { (m, icon) ->
+                    Pill(m.label, Vd.mode == m, { Vd.setMode(context, m) }, Modifier.weight(1f), icon = icon)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
         SectionLabel("Speed")
         GlassCard(Modifier.fillMaxWidth()) {
             SliderRow(Icons.Rounded.Lan, "Connections per file", "More parts, faster downloads.",
                 connections, 1f..16f, 14) { connections = it; prefs.connections = it.roundToInt() }
             Spacer(Modifier.height(16.dp))
-            SliderRow(Icons.Rounded.Layers, "Downloads at the same time", "Others wait in the queue.",
+            SliderRow(Icons.Rounded.Layers, "Downloads at the same time", "Set 1 to download one by one. Others wait in the queue.",
                 simultaneous, 1f..5f, 3) { simultaneous = it; prefs.simultaneous = it.roundToInt(); DownloadQueue.settingsChanged() }
         }
 
@@ -132,6 +172,14 @@ fun SettingsScreen(prefs: Prefs, onLicenses: () -> Unit = {}) {
                 }
             }
         }
+
+        Spacer(Modifier.height(20.dp))
+        SectionLabel("Smart download button")
+        SmartButtonCard(prefs)
+
+        Spacer(Modifier.height(20.dp))
+        SectionLabel("Storage")
+        StorageCard()
 
         Spacer(Modifier.height(20.dp))
         SectionLabel("App")
@@ -276,4 +324,121 @@ private fun InfoRow(icon: ImageVector, title: String, value: String) {
             Text(value, style = MaterialTheme.typography.bodySmall, color = Vd.Muted)
         }
     }
+}
+
+/**
+ * "Smart download button": a small floating button that appears only when it is
+ * useful. Android 8-9: when a video link is copied. Android 10+: while a video
+ * app or browser is open (needs "Usage access": only which app is open, never
+ * what is on screen). Each permission gets a friendly explanation first.
+ */
+@Composable
+private fun SmartButtonCard(prefs: Prefs) {
+    val context = LocalContext.current
+    var on by remember { mutableStateOf(prefs.smartButton && BubbleService.ready(context)) }
+    var wanted by remember { mutableStateOf(false) }
+    var ask by remember { mutableStateOf<String?>(null) }   // "overlay" or "usage"
+
+    fun next() {
+        when {
+            !Settings.canDrawOverlays(context) -> ask = "overlay"
+            BubbleService.needsUsageAccess() && !BubbleService.hasUsageAccess(context) -> ask = "usage"
+            else -> {
+                wanted = false
+                on = true
+                prefs.smartButton = true
+                BubbleService.start(context)
+            }
+        }
+    }
+
+    // back from the system settings page: carry on, or quietly stay off
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                if (wanted && ask == null) {
+                    when {
+                        !Settings.canDrawOverlays(context) -> wanted = false
+                        BubbleService.needsUsageAccess() && !BubbleService.hasUsageAccess(context) -> if (askedUsage) wanted = false else next()
+                        else -> next()
+                    }
+                }
+                if (on && !BubbleService.ready(context)) { on = false; prefs.smartButton = false; BubbleService.stop(context) }
+            }
+        }
+        owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
+    }
+
+    GlassCard(Modifier.fillMaxWidth()) {
+        SwitchRow(
+            Icons.Rounded.TouchApp, "Smart download button",
+            "A small floating button that appears only when it can help.", on,
+        ) { v ->
+            if (v) { wanted = true; askedUsage = false; next() }
+            else { on = false; wanted = false; prefs.smartButton = false; BubbleService.stop(context) }
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(
+            Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)).background(Vd.AccentSoft)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            androidx.compose.material3.Icon(Icons.Rounded.Info, null, tint = Vd.AccentLight, modifier = Modifier.size(16.dp).padding(top = 2.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                if (BubbleService.needsUsageAccess())
+                    "Shows while YouTube, Instagram, TikTok, Facebook, X or a browser is open. In the app tap Share \u2192 Copy link, then tap the button. Drag it to \u00D7 to hide it."
+                else
+                    "Pops up for a few seconds when you copy a video link. Tap it to download. Drag it to \u00D7 to hide it.",
+                style = MaterialTheme.typography.bodySmall, color = Vd.Muted,
+            )
+        }
+    }
+
+    when (ask) {
+        "overlay" -> ExplainDialog(
+            Icons.Rounded.Layers, "Show the button over other apps",
+            "To float over YouTube and other apps, Android needs \"Display over other apps\" turned on for VibeDownloader. " +
+                "On the next page, find VibeDownloader and switch it on, then come back.",
+            onOk = {
+                ask = null
+                runCatching {
+                    context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }.onFailure { wanted = false }
+            },
+            onCancel = { ask = null; wanted = false },
+        )
+        "usage" -> ExplainDialog(
+            Icons.Rounded.Visibility, "Know when a video app is open",
+            "VibeDownloader only checks which app is open, never what is on your screen. " +
+                "On the next page, find VibeDownloader and allow \"Usage access\", then come back.",
+            onOk = {
+                ask = null
+                askedUsage = true
+                runCatching {
+                    context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }.onFailure { wanted = false }
+            },
+            onCancel = { ask = null; wanted = false },
+        )
+    }
+}
+
+/** Was the usage page already opened in this attempt (so coming back without it does not ask again). */
+private var askedUsage = false
+
+@Composable
+private fun ExplainDialog(icon: ImageVector, title: String, body: String, onOk: () -> Unit, onCancel: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        containerColor = Vd.Card,
+        icon = { androidx.compose.material3.Icon(icon, null, tint = Vd.AccentLight) },
+        title = { Text(title, color = Vd.Text) },
+        text = { Text(body, color = Vd.Muted, style = MaterialTheme.typography.bodyMedium) },
+        confirmButton = { TextButton(onClick = onOk) { Text("Continue", color = Vd.AccentLight) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Not now", color = Vd.Muted) } },
+    )
 }

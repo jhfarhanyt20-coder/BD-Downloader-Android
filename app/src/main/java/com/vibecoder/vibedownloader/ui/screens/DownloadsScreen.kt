@@ -53,6 +53,22 @@ import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material.icons.rounded.InstallMobile
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.VerticalAlignTop
+import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.material.icons.rounded.WifiOff
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import com.vibecoder.vibedownloader.data.Category
+import kotlinx.coroutines.delay
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
@@ -107,12 +123,22 @@ import kotlinx.coroutines.withContext
 
 private val Filters = listOf("All", "Active", "Done")
 
+/** Running first, then the line in its order, then everything else newest first. */
+private fun displayOrder(items: List<DownloadItem>): List<DownloadItem> {
+    val running = items.filter { it.status.isRunning }.sortedWith(compareBy({ it.order }, { it.createdAt }))
+    val line = items.filter { it.status == Status.Queued || it.status == Status.Waiting }.sortedWith(compareBy({ it.order }, { it.createdAt }))
+    val rest = items.filter { !it.status.isRunning && it.status != Status.Queued && it.status != Status.Waiting }.sortedByDescending { it.createdAt }
+    return running + line + rest
+}
+
 @Composable
-fun DownloadsScreen(onNew: () -> Unit) {
+fun DownloadsScreen(onNew: () -> Unit, highlightId: String? = null, onHighlightShown: () -> Unit = {}) {
     val items by DownloadRepository.items.collectAsStateWithLifecycle()
     val loaded by DownloadRepository.loaded.collectAsStateWithLifecycle()
     var filter by rememberSaveable { mutableIntStateOf(0) }
+    var category by rememberSaveable { mutableStateOf<String?>(null) }
     var removing by remember { mutableStateOf<DownloadItem?>(null) }
+    var glowId by remember { mutableStateOf<String?>(null) }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         val active = items.count { it.status.isActive }
@@ -134,18 +160,51 @@ fun DownloadsScreen(onNew: () -> Unit) {
                 0 -> Box(Modifier.fillMaxSize())
                 1 -> EmptyState(onNew)
                 else -> Column(Modifier.fillMaxSize()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 12.dp)) {
+                    // status filter on the first row, file types on a scrollable second row
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 10.dp)) {
                         Filters.forEachIndexed { i, label ->
                             val count = when (i) { 1 -> active; 2 -> done; else -> items.size }
                             Pill("$label  $count", filter == i, { filter = i })
                         }
                     }
-                    val shown = when (filter) {
+                    val byStatus = when (filter) {
                         1 -> items.filter { it.status.isActive }
                         2 -> items.filter { it.status == Status.Done }
                         else -> items
-                    }.sortedByDescending { it.createdAt }
+                    }
+                    val cats = byStatus.groupingBy { Category.of(it) }.eachCount()
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 12.dp),
+                    ) {
+                        Pill("All types", category == null, { category = null })
+                        Category.entries.forEach { c ->
+                            Pill(
+                                c.label + (cats[c]?.let { "  $it" } ?: ""), category == c.name,
+                                { category = if (category == c.name) null else c.name },
+                                icon = c.icon, iconTint = c.color,
+                            )
+                        }
+                    }
+                    val shown = displayOrder(byStatus.filter { category == null || Category.of(it).name == category })
+                    val line = DownloadQueue.queueOrder(items)
+                    val listState = rememberLazyListState()
+                    // opened from a notification, the share sheet or a duplicate card: show that download
+                    LaunchedEffect(highlightId, items.size) {
+                        val id = highlightId ?: return@LaunchedEffect
+                        if (items.none { it.id == id }) return@LaunchedEffect
+                        filter = 0
+                        category = null
+                        delay(80)
+                        val index = displayOrder(items).indexOfFirst { it.id == id }
+                        if (index >= 0) runCatching { listState.animateScrollToItem(index) }
+                        glowId = id
+                        onHighlightShown()
+                        delay(1800)
+                        glowId = null
+                    }
                     LazyColumn(
+                        state = listState,
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(bottom = 24.dp),
                         modifier = Modifier.fillMaxSize(),
@@ -153,7 +212,11 @@ fun DownloadsScreen(onNew: () -> Unit) {
                         if (shown.isEmpty()) {
                             item(key = "nothing") {
                                 Text(
-                                    if (filter == 1) "Nothing is downloading right now." else "Nothing finished yet.",
+                                    when {
+                                        category != null -> "No " + (Category.entries.firstOrNull { it.name == category }?.label ?: "").lowercase() + " files here yet."
+                                        filter == 1 -> "Nothing is downloading right now."
+                                        else -> "Nothing finished yet."
+                                    },
                                     style = MaterialTheme.typography.bodyMedium, color = Vd.Muted,
                                     modifier = Modifier.fillMaxWidth().padding(top = 32.dp).animateItem(),
                                     textAlign = TextAlign.Center,
@@ -161,7 +224,11 @@ fun DownloadsScreen(onNew: () -> Unit) {
                             }
                         }
                         items(shown, key = { it.id }) { item ->
-                            DownloadCard(item, Modifier.animateItem(), onRemove = { removing = item })
+                            val pos = line.indexOfFirst { it.id == item.id }
+                            DownloadCard(
+                                item, Modifier.animateItem(), onRemove = { removing = item },
+                                queuePosition = if (pos >= 0) pos + 1 else 0, queueSize = line.size, glow = glowId == item.id,
+                            )
                         }
                     }
                 }
@@ -229,11 +296,10 @@ private fun Tip(icon: ImageVector, title: String, body: String) {
 }
 
 private fun typeIcon(item: DownloadItem): ImageVector {
+    val c = Category.of(item)
+    if (c != Category.Other) return c.icon
     val mime = item.mime.ifBlank { FileNames.mimeFor(item.fileName) }
     return when {
-        item.kind == Kind.Media && item.quality == "audio" -> Icons.Rounded.AudioFile
-        mime.startsWith("audio/") -> Icons.Rounded.AudioFile
-        mime.startsWith("video/") || item.kind == Kind.Media -> Icons.Rounded.OndemandVideo
         mime.startsWith("image/") -> Icons.Rounded.Image
         mime.contains("zip") || mime.contains("compressed") || mime.contains("archive") -> Icons.Rounded.Archive
         else -> Icons.Rounded.InsertDriveFile
@@ -243,10 +309,15 @@ private fun typeIcon(item: DownloadItem): ImageVector {
 private enum class CardPhase { Working, Done, Failed }
 
 @Composable
-private fun DownloadCard(item: DownloadItem, modifier: Modifier, onRemove: () -> Unit) {
-    GlassCard(modifier.fillMaxWidth(), padding = 14) {
+private fun DownloadCard(
+    item: DownloadItem, modifier: Modifier, onRemove: () -> Unit,
+    queuePosition: Int = 0, queueSize: Int = 0, glow: Boolean = false,
+) {
+    val cat = Category.of(item)
+    val glowLine by animateColorAsState(if (glow) Vd.AccentLight else Color.Transparent, tween(400), label = "glow")
+    GlassCard(modifier.fillMaxWidth().border(2.dp, glowLine, RoundedCornerShape(20.dp)), padding = 14) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Thumbnail(item.thumbnail, typeIcon(item), Modifier.size(width = 64.dp, height = 52.dp))
+            Thumbnail(item.thumbnail, typeIcon(item), Modifier.size(width = 64.dp, height = 52.dp), tint = cat.color)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
@@ -258,7 +329,17 @@ private fun DownloadCard(item: DownloadItem, modifier: Modifier, onRemove: () ->
                     if (item.total > 0) formatBytes(item.total) else null,
                     if (item.kind == Kind.Media) qualityLabel(item.quality) else null,
                 ).joinToString("  ·  ")
-                if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.bodySmall, color = Vd.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(cat.color))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        listOf(cat.label, meta).filter { it.isNotEmpty() }.joinToString("  ·  "),
+                        style = MaterialTheme.typography.bodySmall, color = Vd.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (item.status == Status.Queued || item.status == Status.Waiting) {
+                QueueMenu(item, queuePosition, queueSize)
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -273,7 +354,7 @@ private fun DownloadCard(item: DownloadItem, modifier: Modifier, onRemove: () ->
             label = "cardPhase",
         ) { p ->
             when (p) {
-                CardPhase.Working -> WorkingBlock(item)
+                CardPhase.Working -> WorkingBlock(item, queuePosition)
                 CardPhase.Done -> DoneBlock(item, onRemove)
                 CardPhase.Failed -> FailedBlock(item, onRemove)
             }
@@ -288,9 +369,9 @@ private fun qualityLabel(q: String) = when (q) {
 }
 
 @Composable
-private fun WorkingBlock(item: DownloadItem) {
+private fun WorkingBlock(item: DownloadItem, queuePosition: Int = 0) {
     Column {
-        val statusText = when (item.status) {
+        val statusText = if (item.status == Status.Queued && queuePosition > 0) "#$queuePosition in queue" else when (item.status) {
             Status.Downloading -> if (item.total > 0) "${(item.progress * 100).toInt()}%" else if (item.downloaded > 0) formatBytes(item.downloaded) else (item.note ?: "Starting")
             Status.Finishing -> item.note ?: "Finishing up"
             Status.Paused -> "Paused"
@@ -299,10 +380,20 @@ private fun WorkingBlock(item: DownloadItem) {
             else -> ""
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AnimatedContent(statusText, transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) }, label = "statusText") { s ->
-                Text(s, style = MaterialTheme.typography.labelLarge, color = if (item.status == Status.Downloading) Vd.Text else Vd.Muted)
+            if (item.status == Status.Waiting) {
+                Icon(
+                    if (item.note == DownloadQueue.WAIT_WIFI) Icons.Rounded.Wifi else Icons.Rounded.WifiOff, null,
+                    tint = Vd.Accent2, modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
             }
-            Spacer(Modifier.weight(1f))
+            AnimatedContent(
+                statusText, transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) }, label = "statusText",
+                modifier = Modifier.weight(1f),
+            ) { s ->
+                Text(s, style = MaterialTheme.typography.labelLarge, color = if (item.status == Status.Downloading) Vd.Text else Vd.Muted,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
             if (item.status == Status.Downloading) {
                 val right = listOfNotNull(
                     if (item.speed > 0) formatSpeed(item.speed) else null,
@@ -344,14 +435,9 @@ private fun DoneBlock(item: DownloadItem, onRemove: () -> Unit) {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        SoftButton("Open", Icons.Rounded.OpenInNew, {
-            withFile { uri ->
-                try {
-                    context.startActivity(MediaSaver.openIntent(uri, item.mime))
-                } catch (e: Exception) {
-                    Toast.makeText(context, "No app on this phone can open this file", Toast.LENGTH_SHORT).show()
-                }
-            }
+        val apk = Category.of(item) == Category.Apk
+        SoftButton(if (apk) "Install" else "Open", if (apk) Icons.Rounded.InstallMobile else Icons.Rounded.OpenInNew, {
+            scope.launch { runCatching { openDownloaded(context, item) } }
         }, Modifier.weight(1f))
         SoftButton("Share", Icons.Rounded.Share, {
             withFile { uri ->
@@ -454,6 +540,46 @@ private fun UpdateBanner() {
                     SoftButton("Update now", null, { scope.launch { AppUpdater.downloadAndInstall(context) } })
                 }
             }
+        }
+    }
+}
+
+/** The menu on a waiting card: move it in the line. */
+@Composable
+private fun QueueMenu(item: DownloadItem, position: Int, size: Int) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) { Icon(Icons.Rounded.MoreVert, "Queue options", tint = Vd.Muted) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.background(Vd.Card)) {
+            if (position > 1) {
+                DropdownMenuItem(
+                    text = { Text("Start next", color = Vd.Text) },
+                    leadingIcon = { Icon(Icons.Rounded.VerticalAlignTop, null, tint = Vd.AccentLight) },
+                    onClick = { open = false; DownloadQueue.move(item.id, Int.MIN_VALUE) },
+                )
+                DropdownMenuItem(
+                    text = { Text("Move up", color = Vd.Text) },
+                    leadingIcon = { Icon(Icons.Rounded.KeyboardArrowUp, null, tint = Vd.AccentLight) },
+                    onClick = { open = false; DownloadQueue.move(item.id, -1) },
+                )
+            }
+            if (position in 1 until size) {
+                DropdownMenuItem(
+                    text = { Text("Move down", color = Vd.Text) },
+                    leadingIcon = { Icon(Icons.Rounded.KeyboardArrowDown, null, tint = Vd.AccentLight) },
+                    onClick = { open = false; DownloadQueue.move(item.id, 1) },
+                )
+            }
+            DropdownMenuItem(
+                text = { Text("Pause", color = Vd.Text) },
+                leadingIcon = { Icon(Icons.Rounded.Pause, null, tint = Vd.Muted) },
+                onClick = { open = false; DownloadQueue.pause(item.id) },
+            )
+            DropdownMenuItem(
+                text = { Text("Cancel", color = Vd.Red) },
+                leadingIcon = { Icon(Icons.Rounded.Close, null, tint = Vd.Red) },
+                onClick = { open = false; DownloadQueue.cancel(item.id) },
+            )
         }
     }
 }

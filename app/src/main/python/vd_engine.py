@@ -408,6 +408,7 @@ def probe(url, client_index, cache_dir):
             "uploader": data.get("uploader") or data.get("channel") or "",
             "site": data.get("extractor_key") or data.get("extractor") or "",
             "webpage": data.get("webpage_url") or url,
+            "id": str(data.get("id") or ""),
             "qualities": qualities,
         })
     except Exception as exc:  # noqa: BLE001

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -7,6 +8,16 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- continue unfinished downloads after the phone restarts -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- smart download button: floats over other apps (asked for in Settings, with an explanation first) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Android 10+: which app is open (never what is on screen), so the button shows only in video apps.
+         A special permission the user grants in Settings > Usage access. -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
     <!-- Android 8 and 9 only: saving into the public Download folder -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -21,10 +32,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.VibeDownloader">
 
+        <!-- the built-in browser checks pages against Google Safe Browsing -->
+        <meta-data
+            android:name="android.webkit.WebView.EnableSafeBrowsing"
+            android:value="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -40,6 +57,7 @@
             android:excludeFromRecents="true"
             android:taskAffinity=""
             android:launchMode="standard"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.VibeDownloader.Sheet">
             <intent-filter android:label="@string/share_label">
                 <action android:name="android.intent.action.SEND" />
@@ -53,9 +71,30 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- the smart floating download button (Android 14: special-use foreground service) -->
+        <service
+            android:name=".service.BubbleService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Floating download button shown over video apps while the user turned it on; tapping it opens the download sheet." />
+        </service>
+
         <receiver
             android:name=".service.NotificationActionReceiver"
             android:exported="false" />
+
+        <!-- after a restart or an app update: continue unfinished downloads -->
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
 
         <receiver
             android:name=".update.InstallResultReceiver"

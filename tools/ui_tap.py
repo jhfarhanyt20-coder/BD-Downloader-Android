@@ -43,8 +43,11 @@ def main():
     exists = args and args[0] == "--exists"
     want = args[-1].lower()
     found = list(nodes(root))
-    # an exact match wins over a longer text that only contains the word
-    found.sort(key=lambda n: 0 if n[0].lower() == want else 1)
+    # an exact match wins, then a text that starts with the word, then one that only contains it
+    def rank(n):
+        label = n[0].lower()
+        return 0 if label == want else 1 if label.startswith(want) else 2
+    found.sort(key=rank)
     for label, (x, y) in found:
         if label.lower() == want or want in label.lower():
             if exists:

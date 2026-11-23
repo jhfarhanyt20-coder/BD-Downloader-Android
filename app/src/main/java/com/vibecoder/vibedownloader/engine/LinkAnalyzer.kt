@@ -21,6 +21,9 @@ sealed class Analysis {
         val uploader: String,
         val site: String,
         val qualities: List<QualityOption>,
+        /** The page address and id the engine reported (for the duplicate check). */
+        val webpage: String? = null,
+        val mediaId: String? = null,
     ) : Analysis()
     data class Problem(val message: String) : Analysis()
 }
@@ -31,7 +34,9 @@ object LinkAnalyzer {
         if (!Net.online(context)) return@withContext Analysis.Problem("No internet connection. Connect and try again.")
         val host = runCatching { java.net.URI(url).host ?: "" }.getOrDefault("").removePrefix("www.")
         var httpProblem: com.vibecoder.vibedownloader.engine.Problem? = null
-        if (!linkKind(url).startsWith("Video")) {
+        // a stream playlist is a video, not a file to save as-is
+        val playlist = runCatching { java.net.URI(url).path ?: "" }.getOrDefault("").lowercase().endsWith(".m3u8")
+        if (!playlist && !linkKind(url).startsWith("Video")) {
             try {
                 val p = HttpProbe.probe(url)
                 if (!p.isHtml) {
@@ -92,6 +97,8 @@ object LinkAnalyzer {
             uploader = r.optString("uploader"),
             site = site,
             qualities = options,
+            webpage = r.optString("webpage").ifBlank { null },
+            mediaId = r.optString("id").ifBlank { null },
         )
     }
 }

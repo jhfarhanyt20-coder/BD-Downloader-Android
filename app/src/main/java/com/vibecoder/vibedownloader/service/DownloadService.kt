@@ -16,12 +16,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Keeps downloads alive while the app is in the background (foreground
- * service, type dataSync) and shows the progress notification. The work
+ * service, type dataSync) and keeps the notifications up to date. The work
  * itself runs in [DownloadQueue]; this service only stays up while it has work.
+ *
+ * START_STICKY: if Android ends the process (low memory, swiped away), it
+ * starts the service again, which then continues the unfinished downloads.
  */
 class DownloadService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -36,19 +41,30 @@ class DownloadService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         goForeground()
-        if (watcher == null) {
+        running = true
+        if (watcher != null && intent?.getBooleanExtra(EXTRA_RESUME, false) == true) {
+            scope.launch { DownloadQueue.resumeInterrupted() }
+        }
+        if (watcher == null || watcher?.isActive != true) {
             watcher = scope.launch {
-                DownloadRepository.items.collect { _ ->
+                // a fresh process (restart after being killed, or after a reboot): read the list first,
+                // then continue what was running
+                withTimeoutOrNull(10_000) { DownloadRepository.loaded.first { it } }
+                if (intent == null || intent.getBooleanExtra(EXTRA_RESUME, false)) {
+                    AppLog.i("service", "Continuing unfinished downloads (${if (intent == null) "restarted by Android" else "after restart"})")
+                    DownloadQueue.resumeInterrupted()
+                }
+                DownloadRepository.items.collect { items ->
                     if (!DownloadQueue.hasWork()) {
                         delay(1500)   // a new download may follow right away
-                        if (!DownloadQueue.hasWork()) { finish(); return@collect }
+                        if (!DownloadQueue.hasWork()) { finish(); throw kotlinx.coroutines.CancellationException("done") }
                     }
-                    Notifier.update(this@DownloadService, Notifier.foreground(this@DownloadService, DownloadRepository.items.value))
-                    delay(900)   // at most about one notification update per second
+                    Notifier.sync(this@DownloadService, DownloadRepository.items.value, service = true)
+                    delay(1000)   // at most about one notification round per second
                 }
             }
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     private fun goForeground() {
@@ -64,6 +80,7 @@ class DownloadService : Service() {
     private fun finish() {
         running = false
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        Notifier.sync(this, DownloadRepository.items.value, service = false)
         stopSelf()
     }
 
@@ -74,12 +91,17 @@ class DownloadService : Service() {
     }
 
     companion object {
+        private const val EXTRA_RESUME = "resume"
         @Volatile private var running = false
 
-        fun ensureRunning(context: Context) {
-            if (running) return
+        val isRunning: Boolean get() = running
+
+        fun ensureRunning(context: Context, resume: Boolean = false) {
+            if (running && !resume) return
             try {
-                ContextCompat.startForegroundService(context, Intent(context, DownloadService::class.java))
+                ContextCompat.startForegroundService(
+                    context, Intent(context, DownloadService::class.java).putExtra(EXTRA_RESUME, resume),
+                )
                 running = true
             } catch (e: Exception) {
                 // Android may refuse while the app is in the background; downloads still run

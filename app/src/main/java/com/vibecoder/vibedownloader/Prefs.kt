@@ -47,6 +47,30 @@ class Prefs(context: Context) {
         get() = sp.getString("lastQuality", null)
         set(v) = sp.edit().putString("lastQuality", v).apply()
 
+    /** "System", "Light" or "Dark" (see ui/theme/ThemeMode). */
+    var themeMode: String?
+        get() = sp.getString("themeMode", null)
+        set(v) = sp.edit().putString("themeMode", v).apply()
+
+    /** The smart floating download button is turned on. */
+    var smartButton: Boolean
+        get() = sp.getBoolean("smartButton", false)
+        set(v) = sp.edit().putBoolean("smartButton", v).apply()
+
+    /** Where the floating button was left: height on screen (px) and which edge. */
+    var bubbleY: Int
+        get() = sp.getInt("bubbleY", -1)
+        set(v) = sp.edit().putInt("bubbleY", v).apply()
+
+    var bubbleRight: Boolean
+        get() = sp.getBoolean("bubbleRight", true)
+        set(v) = sp.edit().putBoolean("bubbleRight", v).apply()
+
+    /** The quality picked last time for "Add all to queue". */
+    var batchQuality: String
+        get() = sp.getString("batchQuality", "best") ?: "best"
+        set(v) = sp.edit().putString("batchQuality", v).apply()
+
     /** The friendly "allow notifications" card was shown once. */
     var askedNotifications: Boolean
         get() = sp.getBoolean("askedNotifications", false)
@@ -60,11 +84,36 @@ fun extractLink(text: String?): String? {
     return m.value.trimEnd('.', ',', ')', ']', '!', '?')
 }
 
+/** Every distinct http(s) link in a piece of text, in order (for pasting or sharing many at once). */
+fun extractLinks(text: String?): List<String> {
+    if (text.isNullOrBlank()) return emptyList()
+    return Regex("""https?://[^\s<>"']+""").findAll(text)
+        .map { it.value.trimEnd('.', ',', ')', ']', '!', '?', ';') }
+        .filter { runCatching { java.net.URI(it).host }.getOrNull()?.isNotBlank() == true }
+        .distinct().take(100).toList()
+}
+
+/** Video and audio sites the media engine knows well (also used by the browser and the floating button). */
+val VIDEO_SITES = listOf("youtube.com", "youtu.be", "youtube-nocookie.com", "facebook.com", "fb.watch", "fb.com",
+    "instagram.com", "tiktok.com", "x.com", "twitter.com", "vimeo.com", "dailymotion.com", "dai.ly", "reddit.com",
+    "redd.it", "twitch.tv", "soundcloud.com", "bandcamp.com", "bilibili.com", "pinterest.com", "pin.it",
+    "threads.net", "linkedin.com", "tumblr.com", "streamable.com", "rumble.com", "ok.ru", "vk.com", "mixcloud.com")
+
+private val MEDIA_EXT = Regex("""\.(mp4|m4a|m4v|mp3|webm|m3u8|mkv|mov|aac|ogg|opus|flac|wav)$""", RegexOption.IGNORE_CASE)
+
+/** True for a page on a known video site, or a direct video/audio file link. */
+fun isMediaLink(url: String): Boolean {
+    val host = runCatching { java.net.URI(url).host?.lowercase() ?: "" }.getOrDefault("")
+    if (host.isEmpty()) return false
+    if (VIDEO_SITES.any { host == it || host.endsWith(".$it") }) return true
+    val path = runCatching { java.net.URI(url).path ?: "" }.getOrDefault("")
+    return MEDIA_EXT.containsMatchIn(path)
+}
+
 /** What kind of link it is, for the label under the box. */
 fun linkKind(url: String): String {
     val host = runCatching { java.net.URI(url).host?.lowercase() ?: "" }.getOrDefault("")
-    val videoSites = listOf("youtube.com", "youtu.be", "facebook.com", "fb.watch", "instagram.com", "tiktok.com",
-        "x.com", "twitter.com", "vimeo.com", "dailymotion.com", "reddit.com", "twitch.tv", "soundcloud.com")
+    val videoSites = VIDEO_SITES
     return when {
         host.isEmpty() -> "Not a valid link"
         videoSites.any { host == it || host.endsWith(".$it") } -> "Video or audio page"

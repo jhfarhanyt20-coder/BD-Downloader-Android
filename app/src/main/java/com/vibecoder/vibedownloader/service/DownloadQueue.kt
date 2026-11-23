@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 /** Why a running download was asked to stop. */
-enum class StopReason { Pause, Cancel, Wait }
+enum class StopReason { Pause, Cancel, Wait, Offline }
 
 /** Lets the queue stop a running job, whatever engine it uses. */
 class JobControl {
@@ -66,8 +66,8 @@ object DownloadQueue {
     private val running = ConcurrentHashMap<String, Running>()
 
     const val WAIT_LINE = "Waiting in line"
-    const val WAIT_INTERNET = "Waiting for internet"
-    const val WAIT_WIFI = "Waiting for Wi-Fi"
+    const val WAIT_INTERNET = "Waiting for network… it will continue by itself"
+    const val WAIT_WIFI = "Waiting for Wi-Fi… it will continue by itself"
 
     fun init(context: Context) {
         app = context.applicationContext
@@ -97,11 +97,22 @@ object DownloadQueue {
         pump()
     }
 
+    /** Many links at once ("Add all to queue"): they start one after another, in this order. */
+    fun addAll(list: List<DownloadItem>) {
+        list.forEach { DownloadRepository.add(it) }
+        AppLog.i("queue", "Added ${list.size} downloads at once")
+        pump()
+    }
+
     fun pause(id: String) {
         val r = running[id]
         if (r != null) r.control.stop(StopReason.Pause)
-        else DownloadRepository.update(id) {
-            if (it.status == Status.Queued || it.status == Status.Waiting) it.copy(status = Status.Paused, note = null, speed = 0) else it
+        else {
+            DownloadRepository.update(id) {
+                if (it.status == Status.Queued || it.status == Status.Waiting) it.copy(status = Status.Paused, note = null, speed = 0) else it
+            }
+            Notifier.markPaused(id)
+            Notifier.refresh(app)
         }
     }
 
@@ -111,6 +122,7 @@ object DownloadQueue {
     }
 
     fun resume(id: String) {
+        Notifier.unmarkPaused(id)
         DownloadRepository.update(id) {
             if (it.status == Status.Paused || it.status == Status.Failed) it.copy(status = Status.Queued, note = null, interrupted = false) else it
         }
@@ -146,6 +158,7 @@ object DownloadQueue {
 
     /** Continues downloads that were running when the app was closed. */
     fun resumeInterrupted() {
+        if (!::app.isInitialized) return
         DownloadRepository.items.value.filter { it.interrupted && it.status == Status.Paused }.forEach {
             DownloadRepository.update(it.id) { i -> i.copy(status = Status.Queued, interrupted = false) }
         }
@@ -160,11 +173,43 @@ object DownloadQueue {
         scope.launch {
             delay(800)
             val prefs = Prefs(app)
-            if (prefs.wifiOnly && Net.state(app) == Net.State.Metered) {
+            val state = Net.state(app)
+            if (prefs.wifiOnly && state == Net.State.Metered) {
                 running.values.forEach { it.control.stop(StopReason.Wait) }
+            } else if (state == Net.State.None) {
+                // the network really dropped: park the downloads (parts are kept) instead of
+                // letting them retry for half a minute; they continue when it is back
+                delay(2500)
+                if (Net.state(app) == Net.State.None) running.values.forEach { it.control.stop(StopReason.Offline) }
             }
             pump()
         }
+    }
+
+    // ------------------------------------------------------------ queue order
+    /** Waiting items in the order they will start. */
+    fun queueOrder(items: List<DownloadItem> = DownloadRepository.items.value): List<DownloadItem> =
+        items.filter { (it.status == Status.Queued || it.status == Status.Waiting) && !running.containsKey(it.id) }
+            .sortedWith(compareBy({ it.order }, { it.createdAt }))
+
+    /** Moves a waiting download up (-1) or down (+1) in the line; Int.MIN_VALUE = to the front. */
+    fun move(id: String, delta: Int) {
+        val line = queueOrder()
+        val i = line.indexOfFirst { it.id == id }
+        if (i < 0) return
+        if (delta == Int.MIN_VALUE) {
+            val first = line.first()
+            if (first.id != id) DownloadRepository.update(id) { it.copy(order = first.order - 1) }
+            return
+        }
+        val j = (i + delta).coerceIn(0, line.size - 1)
+        if (j == i) return
+        val a = line[i]
+        val b = line[j]
+        val ao = a.order
+        val bo = if (b.order == a.order) b.order + delta else b.order
+        DownloadRepository.update(a.id) { it.copy(order = bo) }
+        DownloadRepository.update(b.id) { it.copy(order = ao) }
     }
 
     @Synchronized
@@ -174,7 +219,7 @@ object DownloadQueue {
         val net = Net.state(app)
         val candidates = DownloadRepository.items.value
             .filter { (it.status == Status.Queued || it.status == Status.Waiting) && !running.containsKey(it.id) }
-            .sortedBy { it.createdAt }
+            .sortedWith(compareBy({ it.order }, { it.createdAt }))
         for (item in candidates) {
             val blocker = when {
                 net == Net.State.None -> WAIT_INTERNET
@@ -191,7 +236,7 @@ object DownloadQueue {
             }
             start(item)
         }
-        if (hasWork()) DownloadService.ensureRunning(app)
+        if (hasWork()) DownloadService.ensureRunning(app) else Notifier.refresh(app)
     }
 
     private fun start(item: DownloadItem) {
@@ -231,12 +276,18 @@ object DownloadQueue {
                         total = if (it.total > 0) it.total else it.downloaded)
                 }
                 workDir(id).deleteRecursively()
+                Notifier.unmarkPaused(id)
                 DownloadRepository.get(id)?.let { Notifier.finished(app, it) }
                 AppLog.i("queue", "Finished $id")
             }
             is JobResult.Stopped -> when (result.reason) {
-                StopReason.Pause -> DownloadRepository.update(id) { it.copy(status = Status.Paused, note = null, speed = 0) }
+                StopReason.Pause -> {
+                    DownloadRepository.update(id) { it.copy(status = Status.Paused, note = null, speed = 0) }
+                    Notifier.markPaused(id)
+                    Notifier.refresh(app)
+                }
                 StopReason.Wait -> DownloadRepository.update(id) { it.copy(status = Status.Waiting, note = WAIT_WIFI, speed = 0) }
+                StopReason.Offline -> DownloadRepository.update(id) { it.copy(status = Status.Waiting, note = WAIT_INTERNET, speed = 0) }
                 StopReason.Cancel -> {
                     DownloadRepository.get(id)?.let { Notifier.clear(app, it) }
                     workDir(id).deleteRecursively()
@@ -246,6 +297,7 @@ object DownloadQueue {
             }
             JobResult.WaitForNetwork -> DownloadRepository.update(id) { it.copy(status = Status.Waiting, note = WAIT_INTERNET, speed = 0) }
             is JobResult.Failed -> {
+                Notifier.unmarkPaused(id)
                 DownloadRepository.update(id) { it.copy(status = Status.Failed, note = result.problem.message, speed = 0) }
                 DownloadRepository.get(id)?.let { Notifier.failed(app, it, result.problem.message) }
                 AppLog.w("queue", "Failed $id: ${result.problem}")
