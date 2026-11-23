@@ -221,9 +221,11 @@ object Notifier {
      */
     @SuppressLint("MissingPermission")
     @Synchronized
-    fun sync(context: Context, items: List<DownloadItem>, service: Boolean) {
+    fun sync(context: Context, @Suppress("UNUSED_PARAMETER") snapshot: List<DownloadItem>, service: Boolean) {
         serviceUp = service
         if (!canPost(context)) return
+        // read the list again under the lock, so a download that just finished is never shown as running
+        val items = DownloadRepository.items.value
         val nm = NotificationManagerCompat.from(context)
         val want = wanted(items)
         val ids = want.map { it.id }.toSet()
@@ -283,6 +285,7 @@ object Notifier {
     }
 
     @SuppressLint("MissingPermission")
+    @Synchronized
     fun finished(context: Context, item: DownloadItem) {
         posted.remove(item.id)
         if (!canPost(context)) return
@@ -306,6 +309,7 @@ object Notifier {
     }
 
     @SuppressLint("MissingPermission")
+    @Synchronized
     fun failed(context: Context, item: DownloadItem, message: String) {
         posted.remove(item.id)
         if (!canPost(context)) return
@@ -325,6 +329,7 @@ object Notifier {
 
     fun clear(context: Context, item: DownloadItem) = clearId(context, item.id)
 
+    @Synchronized
     fun clearId(context: Context, id: String) {
         posted.remove(id)
         pausedHere -= id

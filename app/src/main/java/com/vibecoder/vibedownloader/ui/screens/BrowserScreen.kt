@@ -422,8 +422,8 @@ fun BrowserScreen(state: BrowserState, onDownloadPage: (String) -> Unit) {
             }
 
             // ---------------- download this video
-            AnimatedVisibility(
-                BrowserState.isVideoPage(state.pageUrl),
+            androidx.compose.animation.AnimatedVisibility(
+                visible = BrowserState.isVideoPage(state.pageUrl),
                 modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
                 enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut(),
             ) {
