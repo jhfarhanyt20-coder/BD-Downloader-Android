@@ -3,9 +3,10 @@ name: Build APK
 # Every push to main builds a signed test APK and publishes it as the "preview"
 # pre-release (a direct download link for testing on a phone). A version tag
 # (v1.2.3) builds the real release: APK + latest.json (what the app's updater reads).
+# A push to "dev" only checks that the app compiles: nothing is kept or published.
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -71,10 +72,12 @@ jobs:
           rm -f "$SIGNING_STORE_FILE"
 
       - name: Keep the APK with this run
+        if: github.ref != 'refs/heads/dev'
         uses: actions/upload-artifact@v4
         with:
           name: VibeDownloader-${{ env.APP_VERSION }}
           path: out/
+          retention-days: 7
 
       - name: Publish the test build (preview)
         if: github.ref == 'refs/heads/main'
