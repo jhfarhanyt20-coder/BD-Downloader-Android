@@ -30,7 +30,17 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- "Share" a link from YouTube, Chrome or any app to VibeDownloader -->
+        </activity>
+
+        <!-- "Share" a link from YouTube, Chrome or any app: a small sheet opens on top of
+             that app, the download runs in the background, and the user stays where they were -->
+        <activity
+            android:name=".ShareActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:launchMode="standard"
+            android:theme="@style/Theme.VibeDownloader.Sheet">
             <intent-filter android:label="@string/share_label">
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />

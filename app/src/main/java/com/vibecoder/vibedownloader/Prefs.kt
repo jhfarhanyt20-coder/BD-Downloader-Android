@@ -37,6 +37,11 @@ class Prefs(context: Context) {
         get() = sp.getString("engineZip", null)
         set(v) = sp.edit().putString("engineZip", v).apply()
 
+    /** The quality last picked in the share popup ("1080", "audio" ...), picked first next time. */
+    var lastQuality: String?
+        get() = sp.getString("lastQuality", null)
+        set(v) = sp.edit().putString("lastQuality", v).apply()
+
     /** The friendly "allow notifications" card was shown once. */
     var askedNotifications: Boolean
         get() = sp.getBoolean("askedNotifications", false)

@@ -135,18 +135,7 @@ fun NewDownloadScreen(
 
     fun start() {
         val a = analysis ?: return
-        val item = when (a) {
-            is Analysis.File -> DownloadItem(
-                id = UUID.randomUUID().toString(), url = a.url, kind = Kind.File, title = a.name, fileName = a.name,
-                site = a.site, total = a.size, mime = a.mime,
-            )
-            is Analysis.Media -> DownloadItem(
-                id = UUID.randomUUID().toString(), url = a.url, kind = Kind.Media, title = a.title, fileName = "",
-                site = a.site, thumbnail = a.thumbnail, quality = selected, duration = a.duration,
-                total = a.qualities.firstOrNull { it.key == selected }?.size ?: 0,
-            )
-            is Analysis.Problem -> return
-        }
+        val item = itemFor(a, selected) ?: return
         requestStart {
             scope.launch(Dispatchers.IO) { DownloadQueue.add(item) }
             link = ""
@@ -237,7 +226,7 @@ fun NewDownloadScreen(
 }
 
 @Composable
-private fun LoadingCard() {
+internal fun LoadingCard() {
     GlassCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Skeleton(Modifier.size(width = 96.dp, height = 60.dp), corner = 12.dp)
@@ -264,7 +253,7 @@ private fun LoadingCard() {
 }
 
 @Composable
-private fun FileCard(a: Analysis.File) {
+internal fun FileCard(a: Analysis.File) {
     GlassCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBadge(Icons.Rounded.InsertDriveFile, size = 44)
@@ -281,7 +270,7 @@ private fun FileCard(a: Analysis.File) {
 }
 
 @Composable
-private fun MediaCard(a: Analysis.Media, selected: String, onSelect: (String) -> Unit) {
+internal fun MediaCard(a: Analysis.Media, selected: String, onSelect: (String) -> Unit) {
     GlassCard(Modifier.fillMaxWidth(), padding = 14) {
         Box {
             Thumbnail(a.thumbnail, Icons.Rounded.OndemandVideo, Modifier.fillMaxWidth().aspectRatio(16f / 9f), corner = 14.dp)
@@ -313,7 +302,7 @@ private fun MediaCard(a: Analysis.Media, selected: String, onSelect: (String) ->
 }
 
 @Composable
-private fun ProblemCard(message: String, onRetry: () -> Unit) {
+internal fun ProblemCard(message: String, onRetry: () -> Unit) {
     GlassCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.Top) {
             Icon(Icons.Rounded.ErrorOutline, null, tint = Vd.Amber, modifier = Modifier.size(20.dp))
@@ -323,4 +312,18 @@ private fun ProblemCard(message: String, onRetry: () -> Unit) {
         Spacer(Modifier.height(12.dp))
         SoftButton("Try again", Icons.Rounded.Refresh, onRetry, Modifier.fillMaxWidth())
     }
+}
+
+/** The download to queue for a looked-at link (null for a problem). Shared with the share popup. */
+internal fun itemFor(a: Analysis, selected: String): DownloadItem? = when (a) {
+    is Analysis.File -> DownloadItem(
+        id = UUID.randomUUID().toString(), url = a.url, kind = Kind.File, title = a.name, fileName = a.name,
+        site = a.site, total = a.size, mime = a.mime,
+    )
+    is Analysis.Media -> DownloadItem(
+        id = UUID.randomUUID().toString(), url = a.url, kind = Kind.Media, title = a.title, fileName = "",
+        site = a.site, thumbnail = a.thumbnail, quality = selected, duration = a.duration,
+        total = a.qualities.firstOrNull { it.key == selected }?.size ?: 0,
+    )
+    is Analysis.Problem -> null
 }

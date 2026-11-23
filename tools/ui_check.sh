@@ -27,27 +27,25 @@ tap "Settings";  shot settings
 adb shell input swipe 540 1800 540 600 400; sleep 1; shot settings-scrolled
 tap "Downloads"; shot downloads
 
-step "share a direct file link (10 MB test file)"
-adb shell am start -a android.intent.action.SEND -t text/plain \
-  --es android.intent.extra.TEXT "https://proof.ovh.net/files/10Mb.dat" -n "$PKG/.MainActivity" >/dev/null
-sleep 4; shot shared-direct-link
-tap "Start download" 6; shot direct-downloading
-sleep 20; tap "Downloads" 2; shot direct-after-20s
-adb shell cmd notification list 2>/dev/null | grep -i vibe | head -5 > "$OUT/notifications.txt" || true
+step "share a direct file link: the small sheet opens on top (10 MB test file)"
+adb shell input keyevent KEYCODE_HOME; sleep 2   # share from "another app": the sheet must sit on top of it
+adb shell am start -a android.intent.action.SEND -t text/plain   --es android.intent.extra.TEXT "https://proof.ovh.net/files/10Mb.dat" -n "$PKG/.ShareActivity" >/dev/null
+sleep 5; shot share-sheet-file
+tap "Download" 3; shot share-sheet-closed
+sleep 15
 adb shell cmd statusbar expand-notifications; sleep 2; shot notification-shade; adb shell cmd statusbar collapse
+adb shell am start -n "$PKG/.MainActivity" >/dev/null; sleep 3; tap "Downloads" 2; shot downloads-after-share
 
-step "share a YouTube link (may be blocked for cloud computers; still shows the app's behaviour)"
-adb shell am start -a android.intent.action.SEND -t text/plain \
-  --es android.intent.extra.TEXT "https://www.youtube.com/watch?v=jNQXAC9IVRw" -n "$PKG/.MainActivity" >/dev/null
-# wait up to 150 s for the app to finish looking at the link (screens every 30 s)
+step "share a YouTube link to the sheet (may be blocked for cloud computers)"
+adb shell input keyevent KEYCODE_HOME; sleep 2
+adb shell am start -a android.intent.action.SEND -t text/plain   --es android.intent.extra.TEXT "https://www.youtube.com/watch?v=jNQXAC9IVRw" -n "$PKG/.ShareActivity" >/dev/null
 for i in 1 2 3 4 5; do
-  sleep 30
+  sleep 20
   python3 tools/ui_tap.py --exists "Looking at the link" || python3 tools/ui_tap.py --exists "Still looking" || python3 tools/ui_tap.py --exists "Trying another way" || break
-  shot "youtube-wait-${i}"
 done
-shot youtube-info
-tap "Audio only" 2; shot youtube-audio-picked
-tap "Start download" 8; sleep 45; tap "Downloads" 2; shot youtube-after-start
+shot share-sheet-youtube
+tap "Audio only" 2; tap "Download" 4; shot share-sheet-youtube-after
+adb shell input keyevent KEYCODE_BACK; sleep 1
 
 step "files saved"
 adb shell ls -la /sdcard/Download/VibeDownloader/ > "$OUT/saved-files.txt" 2>&1 || true
