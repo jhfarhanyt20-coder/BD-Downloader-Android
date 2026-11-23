@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window theme only: the app UI itself is drawn by Compose (see ui/theme). -->
+    <style name="Theme.VibeDownloader" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/vd_bg</item>
+        <item name="android:statusBarColor">@color/vd_bg</item>
+        <item name="android:navigationBarColor">@color/vd_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
