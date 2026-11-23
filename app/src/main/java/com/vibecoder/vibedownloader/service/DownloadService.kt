@@ -16,7 +16,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.launch
 
 /**
@@ -39,7 +38,7 @@ class DownloadService : Service() {
         goForeground()
         if (watcher == null) {
             watcher = scope.launch {
-                DownloadRepository.items.conflate().collect { list ->
+                DownloadRepository.items.collect { _ ->
                     if (!DownloadQueue.hasWork()) {
                         delay(1500)   // a new download may follow right away
                         if (!DownloadQueue.hasWork()) { finish(); return@collect }
