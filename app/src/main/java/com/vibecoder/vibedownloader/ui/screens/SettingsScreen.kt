@@ -105,7 +105,32 @@ fun SettingsScreen(prefs: Prefs, onLicenses: () -> Unit = {}) {
         GlassCard(Modifier.fillMaxWidth()) {
             SwitchRow(Icons.Rounded.Wifi, "Download on Wi-Fi only", "Saves your mobile data.", wifiOnly) { wifiOnly = it; prefs.wifiOnly = it; DownloadQueue.settingsChanged() }
             Spacer(Modifier.height(14.dp))
-            InfoRow(Icons.Rounded.Folder, "Saved to", "Download / VibeDownloader")
+            // the user can pick any folder (phone storage or SD card); the default is Download/VibeDownloader
+            var folder by remember { mutableStateOf(com.vibecoder.vibedownloader.engine.MediaSaver.folderLabel(context)) }
+            var custom by remember { mutableStateOf(com.vibecoder.vibedownloader.engine.MediaSaver.usableFolder(context) != null) }
+            val picker = androidx.activity.compose.rememberLauncherForActivityResult(
+                androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree(),
+            ) { tree ->
+                if (tree != null) {
+                    runCatching { com.vibecoder.vibedownloader.engine.MediaSaver.setFolder(context, tree) }
+                        .onFailure { AppLog.w("settings", "Could not use the picked folder", it) }
+                    folder = com.vibecoder.vibedownloader.engine.MediaSaver.folderLabel(context)
+                    custom = com.vibecoder.vibedownloader.engine.MediaSaver.usableFolder(context) != null
+                }
+            }
+            ActionRow(Icons.Rounded.Folder, "Saved to", folder, "Change") { runCatching { picker.launch(null) } }
+            AnimatedVisibility(custom, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+                Column {
+                    Spacer(Modifier.height(10.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        SoftButton("Use the default folder", null, {
+                            com.vibecoder.vibedownloader.engine.MediaSaver.setFolder(context, null)
+                            folder = com.vibecoder.vibedownloader.engine.MediaSaver.folderLabel(context)
+                            custom = false
+                        })
+                    }
+                }
+            }
         }
 
         Spacer(Modifier.height(20.dp))

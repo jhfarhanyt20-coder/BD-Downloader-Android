@@ -23,7 +23,69 @@ object MediaSaver {
     data class Saved(val uri: String, val path: String?, val displayName: String)
 
     fun save(context: Context, src: File, name: String, mime: String): Saved {
+        // a folder the user picked in Settings comes first; if it is gone, fall back to Downloads
+        val tree = usableFolder(context)
+        if (tree != null) {
+            try {
+                return saveToFolder(context, tree, src, name, mime)
+            } catch (e: Exception) {
+                AppLog.w("save", "Chosen folder failed, saving to Downloads instead", e)
+            }
+        }
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) saveQ(context, src, name, mime) else saveLegacy(context, src, name, mime)
+    }
+
+    // ---- a folder the user picked (Storage Access Framework: works on Android 8+, no permission prompt) ----
+
+    /** The picked folder, if the app may still write there. */
+    fun usableFolder(context: Context): Uri? {
+        val s = com.vibecoder.vibedownloader.Prefs(context).saveFolder ?: return null
+        val uri = Uri.parse(s)
+        val ok = context.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
+        return if (ok) uri else null
+    }
+
+    /** Remembers a folder picked with ACTION_OPEN_DOCUMENT_TREE (null = back to the default). */
+    fun setFolder(context: Context, tree: Uri?) {
+        val prefs = com.vibecoder.vibedownloader.Prefs(context)
+        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        prefs.saveFolder?.let { old ->
+            if (tree == null || old != tree.toString()) runCatching { context.contentResolver.releasePersistableUriPermission(Uri.parse(old), flags) }
+        }
+        if (tree != null) context.contentResolver.takePersistableUriPermission(tree, flags)
+        prefs.saveFolder = tree?.toString()
+    }
+
+    /** "Phone storage / Movies" or "SD card / Videos" for the Settings row. */
+    fun folderLabel(context: Context): String {
+        val tree = usableFolder(context) ?: return "Download / $FOLDER"
+        val id = runCatching { android.provider.DocumentsContract.getTreeDocumentId(tree) }.getOrNull() ?: return "Chosen folder"
+        val volume = id.substringBefore(':')
+        val path = id.substringAfter(':', "").trim('/')
+        val where = if (volume.equals("primary", true)) "Phone storage" else if (volume.equals("home", true)) "Documents" else "SD card"
+        return if (path.isEmpty()) where else where + " / " + path.replace("/", " / ")
+    }
+
+    private fun saveToFolder(context: Context, tree: Uri, src: File, name: String, mime: String): Saved {
+        val resolver = context.contentResolver
+        val parent = android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, android.provider.DocumentsContract.getTreeDocumentId(tree))
+        // the folder's app adds " (1)" itself when the name is taken
+        val doc = android.provider.DocumentsContract.createDocument(resolver, parent, mime.ifBlank { "application/octet-stream" }, name)
+            ?: throw IOException("Could not create the file in the chosen folder")
+        try {
+            val out = resolver.openOutputStream(doc) ?: throw IOException("Could not open the file in the chosen folder")
+            out.use { o -> src.inputStream().use { it.copyTo(o, 1 shl 20) } }
+        } catch (e: Exception) {
+            runCatching { android.provider.DocumentsContract.deleteDocument(resolver, doc) }
+            throw e
+        }
+        src.delete()
+        val shownName = runCatching {
+            resolver.query(doc, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                if (c.moveToFirst()) c.getString(0) else null
+            }
+        }.getOrNull() ?: name
+        return Saved(doc.toString(), null, shownName)
     }
 
     @androidx.annotation.RequiresApi(Build.VERSION_CODES.Q)
@@ -88,7 +150,12 @@ object MediaSaver {
             ok = !f.exists() || f.delete()
             if (ok) MediaScannerConnection.scanFile(context, arrayOf(path), null, null)
         } else if (uri != null) {
-            ok = runCatching { context.contentResolver.delete(Uri.parse(uri), null, null) >= 0 }.getOrDefault(false)
+            val u = Uri.parse(uri)
+            ok = if (android.provider.DocumentsContract.isDocumentUri(context, u)) {
+                runCatching { android.provider.DocumentsContract.deleteDocument(context.contentResolver, u) }.getOrDefault(false)
+            } else {
+                runCatching { context.contentResolver.delete(u, null, null) >= 0 }.getOrDefault(false)
+            }
         }
         return ok
     }

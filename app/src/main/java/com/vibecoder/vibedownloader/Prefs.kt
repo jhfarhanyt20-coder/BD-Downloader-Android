@@ -37,6 +37,11 @@ class Prefs(context: Context) {
         get() = sp.getString("engineZip", null)
         set(v) = sp.edit().putString("engineZip", v).apply()
 
+    /** A folder the user picked for downloads (a document tree URI); null = Download/VibeDownloader. */
+    var saveFolder: String?
+        get() = sp.getString("saveFolder", null)
+        set(v) = sp.edit().putString("saveFolder", v).apply()
+
     /** The quality last picked in the share popup ("1080", "audio" ...), picked first next time. */
     var lastQuality: String?
         get() = sp.getString("lastQuality", null)

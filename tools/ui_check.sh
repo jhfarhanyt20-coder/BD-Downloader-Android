@@ -25,6 +25,7 @@ step "screens"
 tap "New";       shot new-page
 tap "Settings";  shot settings
 adb shell input swipe 540 1800 540 600 400; sleep 1; shot settings-scrolled
+tap "Change" 4; shot folder-picker; adb shell input keyevent KEYCODE_BACK; sleep 2; shot settings-after-picker
 tap "Downloads"; shot downloads
 
 step "share a direct file link: the small sheet opens on top (10 MB test file)"
