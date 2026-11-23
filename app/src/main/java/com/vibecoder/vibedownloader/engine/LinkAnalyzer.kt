@@ -48,22 +48,28 @@ object LinkAnalyzer {
     private fun media(context: Context, url: String, host: String, httpProblem: com.vibecoder.vibedownloader.engine.Problem?): Analysis {
         val sets = try { if (isYouTube(url)) MediaEngine.clientSets() else 1 } catch (e: Throwable) { 1 }
         var last = com.vibecoder.vibedownloader.engine.Problem.NoMedia
+        // never keep the user waiting for minutes: stop trying new ways after this
+        val deadline = System.currentTimeMillis() + 90_000
+        AppLog.i("analyze", "Looking at $host ($sets ways to try)")
         for (round in 0..1) {
             for (client in 0 until sets) {
+                if (System.currentTimeMillis() > deadline) { AppLog.w("analyze", "Gave up on $host after 90 s"); break }
+                val started = System.currentTimeMillis()
                 val r = try {
                     MediaEngine.probe(url, client)
                 } catch (t: Throwable) {
                     AppLog.e("analyze", "Engine failed to start", t)
                     JSONObject().put("ok", false).put("error", t.message ?: "")
                 }
-                if (r.optBoolean("ok")) return toMedia(url, host, r)
+                val took = System.currentTimeMillis() - started
+                if (r.optBoolean("ok")) { AppLog.i("analyze", "Found media on $host with way $client in $took ms"); return toMedia(url, host, r) }
                 val p = com.vibecoder.vibedownloader.engine.Problem.ofMedia(r.optString("error"))
-                AppLog.w("analyze", "Probe $host client $client: $p - ${r.optString("error").take(300)}")
+                AppLog.w("analyze", "Probe $host client $client ($took ms): $p - ${r.optString("error").take(300)}")
                 last = p
                 if (!Net.online(context)) return Analysis.Problem("No internet connection. Connect and try again.")
                 if (!p.retryable) break
             }
-            if (!last.retryable || round == 1) break
+            if (!last.retryable || round == 1 || System.currentTimeMillis() > deadline) break
             if (EngineUpdater.checkAfterFailure(context) != EngineUpdater.Result.Updated) break
         }
         // a page yt-dlp does not know, after the file check also failed: say what the server said

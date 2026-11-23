@@ -249,7 +249,17 @@ private fun LoadingCard() {
             }
         }
         Spacer(Modifier.height(14.dp))
-        Text("Looking at the link...", style = MaterialTheme.typography.bodySmall, color = Vd.Muted)
+        // some sites are slow to answer: tell the user it is still working, so it never looks stuck
+        var seconds by remember { mutableIntStateOf(0) }
+        LaunchedEffect(Unit) { while (true) { delay(1000); seconds++ } }
+        val text = when {
+            seconds < 8 -> "Looking at the link..."
+            seconds < 25 -> "Still looking - this site is a little slow..."
+            else -> "Trying another way to reach this video..."
+        }
+        AnimatedContent(targetState = text, transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) }, label = "loadingText") { t ->
+            Text(t, style = MaterialTheme.typography.bodySmall, color = Vd.Muted)
+        }
     }
 }
 

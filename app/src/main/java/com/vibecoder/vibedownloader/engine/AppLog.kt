@@ -30,6 +30,11 @@ object AppLog {
     fun e(tag: String, msg: String, t: Throwable? = null) = write("E", tag, msg, t)
 
     private fun write(level: String, tag: String, msg: String, t: Throwable?) {
+        // also to logcat, so a test run on an emulator shows what the app did (no keys or personal data are logged)
+        runCatching {
+            val prio = when (level) { "E" -> android.util.Log.ERROR; "W" -> android.util.Log.WARN; else -> android.util.Log.INFO }
+            android.util.Log.println(prio, "VibeDownloader", "$tag: $msg" + (if (t != null) " | ${t.javaClass.simpleName}: ${t.message}" else ""))
+        }
         val d = dir ?: return
         val line = buildString {
             append(synchronized(stamp) { stamp.format(Date()) }).append(' ').append(level).append(' ').append(tag).append(": ").append(msg)

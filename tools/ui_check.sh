@@ -29,7 +29,7 @@ tap "Downloads"; shot downloads
 
 step "share a direct file link (10 MB test file)"
 adb shell am start -a android.intent.action.SEND -t text/plain \
-  --es android.intent.extra.TEXT "Test file https://proof.ovh.net/files/10Mb.dat" -n "$PKG/.MainActivity" >/dev/null
+  --es android.intent.extra.TEXT "https://proof.ovh.net/files/10Mb.dat" -n "$PKG/.MainActivity" >/dev/null
 sleep 4; shot shared-direct-link
 tap "Start download" 6; shot direct-downloading
 sleep 20; tap "Downloads" 2; shot direct-after-20s
@@ -39,9 +39,15 @@ adb shell cmd statusbar expand-notifications; sleep 2; shot notification-shade; 
 step "share a YouTube link (may be blocked for cloud computers; still shows the app's behaviour)"
 adb shell am start -a android.intent.action.SEND -t text/plain \
   --es android.intent.extra.TEXT "https://www.youtube.com/watch?v=jNQXAC9IVRw" -n "$PKG/.MainActivity" >/dev/null
-sleep 25; shot youtube-info
+# wait up to 150 s for the app to finish looking at the link (screens every 30 s)
+for i in 1 2 3 4 5; do
+  sleep 30
+  python3 tools/ui_tap.py --exists "Looking at the link" || python3 tools/ui_tap.py --exists "Still looking" || python3 tools/ui_tap.py --exists "Trying another way" || break
+  shot "youtube-wait-${i}"
+done
+shot youtube-info
 tap "Audio only" 2; shot youtube-audio-picked
-tap "Start download" 8; sleep 30; tap "Downloads" 2; shot youtube-after-40s
+tap "Start download" 8; sleep 45; tap "Downloads" 2; shot youtube-after-start
 
 step "files saved"
 adb shell ls -la /sdcard/Download/VibeDownloader/ > "$OUT/saved-files.txt" 2>&1 || true
@@ -49,6 +55,6 @@ cat "$OUT/saved-files.txt"
 
 step "logs"
 adb logcat -d -v time > "$OUT/logcat-all.txt"
-grep -E "AndroidRuntime|FATAL|$PKG|python|chaquopy|yt.dlp|VibeDownloader" "$OUT/logcat-all.txt" | tail -400 > "$OUT/logcat-app.txt" || true
+grep -E "AndroidRuntime|FATAL|VibeDownloader|python.stderr|python.stdout" "$OUT/logcat-all.txt" | tail -400 > "$OUT/logcat-app.txt" || true
 if grep -q "FATAL EXCEPTION" "$OUT/logcat-all.txt"; then echo "CRASH FOUND"; grep -A30 "FATAL EXCEPTION" "$OUT/logcat-all.txt" | head -60; fi
 exit 0

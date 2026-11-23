@@ -42,7 +42,10 @@ def main():
         return
     exists = args and args[0] == "--exists"
     want = args[-1].lower()
-    for label, (x, y) in nodes(root):
+    found = list(nodes(root))
+    # an exact match wins over a longer text that only contains the word
+    found.sort(key=lambda n: 0 if n[0].lower() == want else 1)
+    for label, (x, y) in found:
         if label.lower() == want or want in label.lower():
             if exists:
                 sys.exit(0)
