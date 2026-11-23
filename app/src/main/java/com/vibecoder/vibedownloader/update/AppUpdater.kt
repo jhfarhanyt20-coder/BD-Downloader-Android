@@ -40,6 +40,8 @@ object AppUpdater {
         object UpToDate : State()
         data class Available(val release: Release) : State()
         data class Downloading(val release: Release, val progress: Float) : State()
+        /** Downloaded and checked: the user taps "Install now". */
+        class Ready(val release: Release, val apk: File) : State()
         /** Android needs "Install unknown apps" allowed for VibeDownloader first. */
         class NeedsPermission(val release: Release, val apk: File) : State()
         data class Installing(val release: Release) : State()
@@ -55,6 +57,90 @@ object AppUpdater {
         if (!prefs.autoUpdate) return
         if (System.currentTimeMillis() - prefs.lastAppUpdateCheck < INTERVAL) return
         check(context, quiet = true)
+        // automatic updates: download it quietly, then offer "Install now" (in the app and as a notification)
+        if (_state.value is State.Available && (!prefs.wifiOnly || com.vibecoder.vibedownloader.engine.Net.state(context) == com.vibecoder.vibedownloader.engine.Net.State.Unmetered)) {
+            if (download(context)) notifyReady(context)
+        }
+    }
+
+    /** Downloads and checks the new version. True when it is ready to install. */
+    suspend fun download(context: Context): Boolean = withContext(Dispatchers.IO) {
+        val s0 = _state.value
+        if (s0 is State.Ready) return@withContext true
+        val release = when (s0) {
+            is State.Available -> s0.release
+            is State.Problem, State.UpToDate, State.Idle, State.Checking -> { check(context); (_state.value as? State.Available)?.release }
+            else -> null
+        } ?: return@withContext false
+        try {
+            checkUrl(release.url)
+            if (release.size <= 0 || release.size > MAX_APK) throw IOException("Unexpected update size")
+            val dir = File(context.cacheDir, "update").apply { mkdirs() }
+            dir.listFiles()?.forEach { it.delete() }
+            val apk = File(dir, "VibeDownloader-${release.version}.apk")
+            _state.value = State.Downloading(release, 0f)
+            SafeFetch.open(release.url, SafeFetch.githubAllow(REPO)).use { resp ->
+                val body = resp.body ?: throw IOException("Empty answer")
+                apk.outputStream().use { out ->
+                    val input = body.byteStream()
+                    val buf = ByteArray(64 * 1024)
+                    var total = 0L
+                    var lastShown = 0L
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        total += n
+                        if (total > release.size) throw IOException("Update is bigger than announced")
+                        if (total - lastShown > 256 * 1024) {
+                            lastShown = total
+                            _state.value = State.Downloading(release, total.toFloat() / release.size)
+                        }
+                    }
+                }
+            }
+            if (apk.length() != release.size) throw IOException("Update size does not match")
+            val sha = apk.inputStream().use { SafeFetch.sha256(it) }
+            if (!sha.equals(release.sha256, ignoreCase = true)) throw IOException("Update failed the SHA-256 check")
+            verifyPackage(context, apk)
+            _state.value = State.Ready(release, apk)
+            AppLog.i("update", "Version ${release.version} downloaded and ready to install")
+            true
+        } catch (e: Exception) {
+            AppLog.w("update", "Update download failed", e)
+            _state.value = State.Problem("The update couldn't be downloaded. Please try again.")
+            false
+        }
+    }
+
+    /** "Install now": installs the downloaded version (downloads it first if needed). */
+    suspend fun installNow(context: Context): Unit = withContext(Dispatchers.IO) {
+        when (val s = _state.value) {
+            is State.Ready -> install(context, s.release, s.apk)
+            is State.NeedsPermission -> install(context, s.release, s.apk)
+            else -> if (download(context)) (_state.value as? State.Ready)?.let { install(context, it.release, it.apk) }
+        }
+    }
+
+    /** A notification when an update finished downloading on its own. */
+    private fun notifyReady(context: Context) {
+        val s = _state.value as? State.Ready ?: return
+        if (!com.vibecoder.vibedownloader.service.Notifier.canPost(context)) return
+        runCatching {
+            val open = PendingIntent.getActivity(
+                context, 9100,
+                Intent(context, com.vibecoder.vibedownloader.MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            val n = androidx.core.app.NotificationCompat.Builder(context, com.vibecoder.vibedownloader.service.Notifier.CHANNEL_RESULT)
+                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setContentTitle("VibeDownloader ${s.release.version} is ready")
+                .setContentText("Tap to install the new version.")
+                .setContentIntent(open)
+                .setAutoCancel(true)
+                .build()
+            androidx.core.app.NotificationManagerCompat.from(context).notify(9100, n)
+        }
     }
 
     suspend fun check(context: Context, quiet: Boolean = false): Unit = withContext(Dispatchers.IO) {

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- App icon: a downward arrow into a tray, purple-to-cyan like the desktop app. -->
+<!-- App icon: a downward arrow into a tray, in the solid accent colour. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
@@ -10,12 +9,8 @@
         android:strokeWidth="7"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:fillColor="#00000000">
-        <aapt:attr name="android:strokeColor">
-            <gradient android:type="linear" android:startX="40" android:startY="30" android:endX="68" android:endY="64"
-                android:startColor="#FF8B5CFF" android:endColor="#FF00B8F0" />
-        </aapt:attr>
-    </path>
+        android:fillColor="#00000000"
+        android:strokeColor="#FF8B5CFF" />
     <path android:pathData="M36,70 L36,74 Q36,78 40,78 L68,78 Q72,78 72,74 L72,70"
         android:strokeWidth="6"
         android:strokeLineCap="round"

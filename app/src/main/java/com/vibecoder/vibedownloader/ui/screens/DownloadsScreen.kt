@@ -521,24 +521,40 @@ private fun UpdateBanner() {
     val release = when (val s = state) {
         is AppUpdater.State.Available -> s.release
         is AppUpdater.State.Downloading -> s.release
+        is AppUpdater.State.Ready -> s.release
+        is AppUpdater.State.NeedsPermission -> s.release
         else -> null
     }
     AnimatedVisibility(release != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
         GlassCard(Modifier.fillMaxWidth().padding(bottom = 14.dp), padding = 14) {
+            val s = state
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconBadge(Icons.Rounded.SystemUpdate, size = 38)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Version ${release?.version ?: ""} is ready", style = MaterialTheme.typography.titleMedium, color = Vd.Text)
-                    val s = state
                     Text(
-                        if (s is AppUpdater.State.Downloading) "Downloading ${(s.progress * 100).toInt()}%" else "New features and fixes",
+                        if (s is AppUpdater.State.Ready || s is AppUpdater.State.NeedsPermission) "Version ${release?.version ?: ""} is ready to install"
+                        else "Version ${release?.version ?: ""} is available",
+                        style = MaterialTheme.typography.titleMedium, color = Vd.Text,
+                    )
+                    Text(
+                        when (s) {
+                            is AppUpdater.State.Downloading -> "Downloading ${(s.progress * 100).toInt()}%"
+                            is AppUpdater.State.Ready -> "Downloaded. Your downloads and settings stay."
+                            else -> "New features and fixes"
+                        },
                         style = MaterialTheme.typography.bodySmall, color = Vd.Muted,
                     )
                 }
-                if (state is AppUpdater.State.Available) {
-                    SoftButton("Update now", null, { scope.launch { AppUpdater.downloadAndInstall(context) } })
+                when (s) {
+                    is AppUpdater.State.Available -> SoftButton("Update now", null, { scope.launch { AppUpdater.download(context) } })
+                    is AppUpdater.State.Ready, is AppUpdater.State.NeedsPermission ->
+                        GradientButton("Install now", null, { scope.launch { AppUpdater.installNow(context) } }, Modifier.width(140.dp))
+                    else -> Unit
                 }
+            }
+            if (s is AppUpdater.State.Downloading) {
+                GradientProgressBar(s.progress, Modifier.padding(top = 12.dp))
             }
         }
     }

@@ -1,9 +1,8 @@
 name: Build APK
 
-# Every push to main builds a signed test APK and publishes it as the "preview"
-# pre-release (a direct download link for testing on a phone). A version tag
-# (v1.2.3) builds the real release: APK + latest.json (what the app's updater reads).
-# A push to "dev" only checks that the app compiles: nothing is kept or published.
+# Only a version tag (v1.2.3) publishes anything: the final release with the APK
+# and latest.json (what the app's updater reads). Pushes to main and dev only
+# check that the app builds; no test builds are ever published.
 on:
   push:
     branches: [main, dev]
@@ -79,30 +78,24 @@ jobs:
           cat out/latest.json
           rm -f "$SIGNING_STORE_FILE"
 
-      - name: Keep the APK with this run
-        if: github.ref != 'refs/heads/dev'
-        uses: actions/upload-artifact@v4
-        with:
-          name: VibeDownloader-${{ env.APP_VERSION }}
-          path: out/
-          retention-days: 7
-
-      - name: Publish the test build (preview)
-        if: github.ref == 'refs/heads/main'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release delete preview --cleanup-tag --yes --repo "$GITHUB_REPOSITORY" || true
-          gh release create preview "out/VibeDownloader-${APP_VERSION}.apk" --prerelease --target "$GITHUB_SHA" \
-            --title "Test build ${APP_VERSION}" \
-            --notes "Test build for checking on a phone. Download the APK on the phone and open it to install. Not a final release." \
-            --repo "$GITHUB_REPOSITORY"
-
       - name: Publish the release
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          notes="Download **VibeDownloader-${APP_VERSION}.apk** on your Android phone and open it to install. Installed apps update themselves."
+          if [ -f "release-notes/v${APP_VERSION}.md" ]; then notes="$(cat "release-notes/v${APP_VERSION}.md")"; fi
           gh release create "$GITHUB_REF_NAME" "out/VibeDownloader-${APP_VERSION}.apk" out/latest.json \
-            --title "VibeDownloader for Android ${APP_VERSION}" --verify-tag --repo "$GITHUB_REPOSITORY" \
-            --notes "Download **VibeDownloader-${APP_VERSION}.apk** on your Android phone and open it to install."
+            --title "VibeDownloader for Android ${APP_VERSION}" --verify-tag --latest --repo "$GITHUB_REPOSITORY" \
+            --notes "$notes"
+
+      - name: Check the release has the APK and latest.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          names=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
+          for n in "VibeDownloader-${APP_VERSION}.apk" latest.json; do
+            echo "$names" | grep -qx "$n" || { echo "::error::release is missing $n"; exit 1; }
+          done
+          echo "All assets present"

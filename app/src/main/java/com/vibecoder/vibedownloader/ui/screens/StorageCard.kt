@@ -173,7 +173,7 @@ private fun UsageBar(parts: List<Pair<Float, Color?>>) {
             parts.forEach { (f, color) ->
                 val w = size.width * f.coerceIn(0f, 1f) * grow.value
                 if (w > 0f) {
-                    if (color == null) drawRect(Brush.horizontalGradient(gradient, startX = 0f, endX = size.width), Offset(x, 0f), Size(w, size.height))
+                    if (color == null) drawRect(Vd.Accent, Offset(x, 0f), Size(w, size.height))
                     else drawRect(color, Offset(x, 0f), Size(w, size.height))
                     x += w
                 }

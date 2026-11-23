@@ -184,23 +184,29 @@ fun SettingsScreen(prefs: Prefs, onLicenses: () -> Unit = {}) {
         Spacer(Modifier.height(20.dp))
         SectionLabel("App")
         GlassCard(Modifier.fillMaxWidth()) {
-            SwitchRow(Icons.Rounded.SystemUpdate, "Automatic update checks", "You choose when to install.", autoUpdate) { autoUpdate = it; prefs.autoUpdate = it }
+            SwitchRow(Icons.Rounded.SystemUpdate, "Automatic updates", "New versions download by themselves; you tap Install now.", autoUpdate) { autoUpdate = it; prefs.autoUpdate = it }
             Spacer(Modifier.height(14.dp))
             val s = update
             val (updateHint, updateAction) = when (s) {
                 is AppUpdater.State.Checking -> "Checking..." to null
                 is AppUpdater.State.UpToDate -> "You have the latest version" to "Check"
-                is AppUpdater.State.Available -> "Version ${s.release.version} is ready" to "Update now"
+                is AppUpdater.State.Available -> "Version ${s.release.version} is available" to "Update now"
                 is AppUpdater.State.Downloading -> "Downloading ${(s.progress * 100).toInt()}%" to null
+                is AppUpdater.State.Ready -> "Version ${s.release.version} is downloaded" to "Install now"
                 is AppUpdater.State.NeedsPermission -> "Allow installs to finish the update" to "Update now"
                 is AppUpdater.State.Installing -> "Installing..." to null
                 is AppUpdater.State.Problem -> s.message to "Try again"
                 else -> "Version ${BuildConfig.VERSION_NAME}" to "Check"
             }
-            ActionRow(Icons.Rounded.Update, "Check for updates", updateHint, updateAction, primary = s is AppUpdater.State.Available) {
+            ActionRow(Icons.Rounded.Update, "Check for updates", updateHint, updateAction,
+                primary = s is AppUpdater.State.Available || s is AppUpdater.State.Ready) {
                 scope.launch {
-                    if (s is AppUpdater.State.Available || s is AppUpdater.State.NeedsPermission) AppUpdater.downloadAndInstall(context)
-                    else AppUpdater.check(context)
+                    when (s) {
+                        // "Update now": download inside the app; when it is done the button becomes "Install now"
+                        is AppUpdater.State.Available -> AppUpdater.download(context)
+                        is AppUpdater.State.Ready, is AppUpdater.State.NeedsPermission -> AppUpdater.installNow(context)
+                        else -> AppUpdater.check(context)
+                    }
                 }
             }
             AnimatedVisibility(s is AppUpdater.State.Downloading, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {

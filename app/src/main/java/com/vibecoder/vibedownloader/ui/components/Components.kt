@@ -42,7 +42,7 @@ fun GlassCard(modifier: Modifier = Modifier, padding: Int = 18, content: @Compos
     Column(
         modifier
             .clip(shape)
-            .background(Brush.verticalGradient(listOf(Vd.CardHi, Vd.Card)))
+            .background(Vd.Card)
             .border(1.dp, Vd.Line, shape)
             .padding(padding.dp),
         content = content,

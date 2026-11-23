@@ -208,7 +208,7 @@ fun DownloadSheet(
                     .fillMaxWidth()
                     .heightIn(max = 680.dp)
                     .clip(shape)
-                    .background(Brush.verticalGradient(listOf(Vd.CardHi, Vd.Surface)))
+                    .background(Vd.Surface)
                     .border(1.dp, Vd.Line, shape)
                     .clickable(remember { MutableInteractionSource() }, null) { } // taps inside never close it
                     .navigationBarsPadding()

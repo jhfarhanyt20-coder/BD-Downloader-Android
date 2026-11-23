@@ -13,12 +13,10 @@ import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.RectF
-import android.graphics.Shader
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -452,7 +450,8 @@ private class BubbleView(context: Context) : View(context) {
         val cy = height / 2f
         val r = minOf(width, height) / 2f - 5 * d
         c.drawCircle(cx, cy + 1.5f * d, r + 1.5f * d, shadow)
-        fill.shader = LinearGradient(cx - r, cy - r, cx + r, cy + r, 0xFF8B5CFF.toInt(), 0xFF00B8F0.toInt(), Shader.TileMode.CLAMP)
+        fill.shader = null
+        fill.color = 0xFF6A3DF5.toInt() // solid accent colour (no gradients)
         c.drawCircle(cx, cy, r, fill)
         // arrow down onto a tray
         val s = r * 0.42f

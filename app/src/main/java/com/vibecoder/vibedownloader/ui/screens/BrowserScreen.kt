@@ -281,7 +281,7 @@ class BrowserState {
             if (lower.startsWith("http://") || lower.startsWith("https://")) return t
             val looksLikeHost = !t.contains(' ') && Regex("""^[\w.-]+\.[a-z]{2,}(:\d+)?(/.*)?$""", RegexOption.IGNORE_CASE).matches(t)
             if (looksLikeHost) return "https://$t"
-            return "https://duckduckgo.com/?q=" + URLEncoder.encode(t, "UTF-8")
+            return "https://www.google.com/search?q=" + URLEncoder.encode(t, "UTF-8")
         }
 
         /** An intent that can only open a browsable activity: no fixed component, no selector, no permission grants. */
@@ -367,7 +367,7 @@ fun BrowserScreen(state: BrowserState, onDownloadPage: (String) -> Unit) {
         val alpha by animateFloatAsState(if (showLine) 1f else 0f, tween(300), label = "lineAlpha")
         Canvas(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).height(3.dp)) {
             if (alpha > 0f) {
-                drawRoundRect(Brush.horizontalGradient(listOf(Vd.AccentLight, Vd.Accent2)), size = Size(size.width * p, size.height),
+                drawRoundRect(Vd.Accent, size = Size(size.width * p, size.height),
                     cornerRadius = CornerRadius(size.height, size.height), alpha = alpha)
             }
         }
@@ -490,7 +490,7 @@ private fun BrowserHome(onOpen: (String) -> Unit) {
                 row.forEach { site ->
                     val shape = RoundedCornerShape(18.dp)
                     Column(
-                        Modifier.weight(1f).clip(shape).background(Brush.verticalGradient(listOf(Vd.CardHi, Vd.Card))).border(1.dp, Vd.Line, shape)
+                        Modifier.weight(1f).clip(shape).background(Vd.Card).border(1.dp, Vd.Line, shape)
                             .clickable { onOpen(site.url) }.padding(vertical = 14.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
@@ -506,7 +506,7 @@ private fun BrowserHome(onOpen: (String) -> Unit) {
         }
         Spacer(Modifier.height(10.dp))
         Text(
-            "Searches use DuckDuckGo. Other apps are never opened without asking you first.",
+            "Searches use Google. Other apps are never opened without asking you first.",
             style = MaterialTheme.typography.bodySmall, color = Vd.Faint,
         )
         Spacer(Modifier.height(24.dp))

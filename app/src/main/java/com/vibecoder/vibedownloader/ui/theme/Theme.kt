@@ -33,7 +33,7 @@ enum class ThemeMode(val label: String) {
     System("System"), Light("Light"), Dark("Dark");
 
     companion object {
-        fun from(s: String?): ThemeMode = entries.firstOrNull { it.name == s } ?: Dark
+        fun from(s: String?): ThemeMode = entries.firstOrNull { it.name == s } ?: System
     }
 }
 
@@ -141,7 +141,7 @@ private fun mix(a: VdPalette, b: VdPalette, t: Float) = VdPalette(
  */
 object Vd {
     /** What the user picked in Settings. */
-    var mode by mutableStateOf(ThemeMode.Dark)
+    var mode by mutableStateOf(ThemeMode.System)
     internal var palette by mutableStateOf(DarkPalette)
 
     val isDark: Boolean get() = palette.dark
@@ -169,8 +169,9 @@ object Vd {
     val CatApk: Color get() = palette.catApk
     val CatOther: Color get() = palette.catOther
 
-    val AccentGradient: Brush get() = Brush.linearGradient(listOf(palette.accentLight.let { if (palette.dark) it else Color(0xFF7A4DF8) }, palette.accent2))
-    val GlowGradient: Brush get() = Brush.verticalGradient(listOf(Color(0x336A3DF5), Color(0x0000B8F0)))
+    // solid colours only (no gradients); the names are kept so every call site stays the same
+    val AccentGradient: Brush get() = androidx.compose.ui.graphics.SolidColor(palette.accent)
+    val GlowGradient: Brush get() = androidx.compose.ui.graphics.SolidColor(palette.accentSoft)
 
     fun target(mode: ThemeMode, systemDark: Boolean): VdPalette = when (mode) {
         ThemeMode.Dark -> DarkPalette

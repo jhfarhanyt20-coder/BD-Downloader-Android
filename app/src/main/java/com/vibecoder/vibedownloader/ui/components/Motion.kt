@@ -75,11 +75,9 @@ fun GradientProgressBar(progress: Float, modifier: Modifier = Modifier, active: 
         if (w > 0f) {
             val span = size.width.coerceAtLeast(1f)
             val x = if (active) shift * span * 2 - span else 0f
-            val brush = Brush.linearGradient(
-                listOf(Vd.AccentLight, Vd.Accent2, Vd.AccentLight),
-                start = Offset(x, 0f), end = Offset(x + span, 0f), tileMode = TileMode.Mirror,
-            )
-            drawRoundRect(brush, size = Size(w.coerceAtLeast(size.height), size.height), cornerRadius = r, alpha = dim)
+            // solid colour; a running download gently pulses instead of a moving gradient
+            val pulse = if (active) 0.85f + 0.15f * kotlin.math.abs(1f - 2f * shift) else 1f
+            drawRoundRect(Vd.Accent, size = Size(w.coerceAtLeast(size.height), size.height), cornerRadius = r, alpha = dim * pulse)
         }
     }
 }
@@ -98,7 +96,7 @@ fun IndeterminateBar(modifier: Modifier = Modifier, height: Dp = 8.dp, soft: Boo
         val right = (x + pieceW).coerceAtMost(size.width)
         if (right > left) {
             drawRoundRect(
-                Brush.horizontalGradient(listOf(Vd.AccentLight, Vd.Accent2), startX = x, endX = x + pieceW),
+                Vd.Accent,
                 topLeft = Offset(left, 0f), size = Size(right - left, size.height), cornerRadius = r,
                 alpha = if (soft) 0.5f else 1f,
             )
