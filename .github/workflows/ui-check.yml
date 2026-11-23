@@ -1,0 +1,92 @@
+name: UI check (emulator)
+
+# Runs the real signed app on an Android emulator in GitHub's cloud, walks through
+# the screens, starts test downloads and saves screenshots + logcat, so the app can
+# be checked without a phone. Runs only when the "ui-check" branch is pushed (or by
+# hand). Nothing is published; the screenshots are kept for 3 days.
+on:
+  push:
+    branches: [ui-check]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Android 10 (the oldest phones many users have) and Android 14 (newest)
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [29, 34]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python 3.11 (builds the Python part of the app)
+        id: py
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Signing key (from GitHub Secrets)
+        env:
+          SIGNING_KEY_B64: ${{ secrets.SIGNING_KEY_B64 }}
+        run: |
+          echo "$SIGNING_KEY_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+          echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+          echo "APP_VERSION=0.0.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+
+      - name: Build the signed release APK (same as users get)
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          VD_BUILD_PYTHON: ${{ steps.py.outputs.python-path }}
+        run: |
+          gradle :app:assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/app.apk"
+          rm -f "$SIGNING_STORE_FILE"
+
+      - name: Enable KVM (hardware speed for the emulator)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run the app on a phone emulator (Android API ${{ matrix.api }})
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash tools/ui_check.sh "$RUNNER_TEMP/app.apk" shots
+
+      - name: Keep the screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-check-${{ github.run_number }}-api${{ matrix.api }}
+          path: shots/
+          retention-days: 3
