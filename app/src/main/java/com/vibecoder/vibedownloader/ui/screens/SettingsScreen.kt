@@ -1,5 +1,35 @@
 package com.vibecoder.vibedownloader.ui.screens
 
+import android.content.ClipData
+import android.content.Intent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.Gavel
+import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Update
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.vibecoder.vibedownloader.engine.AppLog
+import com.vibecoder.vibedownloader.engine.EngineUpdater
+import com.vibecoder.vibedownloader.engine.MediaEngine
+import com.vibecoder.vibedownloader.service.DownloadQueue
+import com.vibecoder.vibedownloader.ui.components.GradientButton
+import com.vibecoder.vibedownloader.ui.components.GradientProgressBar
+import com.vibecoder.vibedownloader.ui.components.SoftButton
+import com.vibecoder.vibedownloader.update.AppUpdater
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,7 +74,15 @@ import com.vibecoder.vibedownloader.ui.theme.Vd
 import kotlin.math.roundToInt
 
 @Composable
-fun SettingsScreen(prefs: Prefs) {
+fun SettingsScreen(prefs: Prefs, onLicenses: () -> Unit = {}) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val update by AppUpdater.state.collectAsStateWithLifecycle()
+    val engineVersion by MediaEngine.version.collectAsStateWithLifecycle()
+    val engineStatus by EngineUpdater.status.collectAsStateWithLifecycle()
+    var engineBusy by remember { mutableStateOf(false) }
+    // start the engine quietly so its version can be shown
+    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { runCatching { MediaEngine.ensure() } } }
     var connections by remember { mutableFloatStateOf(prefs.connections.toFloat()) }
     var simultaneous by remember { mutableFloatStateOf(prefs.simultaneous.toFloat()) }
     var wifiOnly by remember { mutableStateOf(prefs.wifiOnly) }
@@ -59,13 +97,13 @@ fun SettingsScreen(prefs: Prefs) {
                 connections, 1f..16f, 14) { connections = it; prefs.connections = it.roundToInt() }
             Spacer(Modifier.height(16.dp))
             SliderRow(Icons.Rounded.Layers, "Downloads at the same time", "Others wait in the queue.",
-                simultaneous, 1f..5f, 3) { simultaneous = it; prefs.simultaneous = it.roundToInt() }
+                simultaneous, 1f..5f, 3) { simultaneous = it; prefs.simultaneous = it.roundToInt(); DownloadQueue.settingsChanged() }
         }
 
         Spacer(Modifier.height(20.dp))
         SectionLabel("Network and files")
         GlassCard(Modifier.fillMaxWidth()) {
-            SwitchRow(Icons.Rounded.Wifi, "Download on Wi-Fi only", "Saves your mobile data.", wifiOnly) { wifiOnly = it; prefs.wifiOnly = it }
+            SwitchRow(Icons.Rounded.Wifi, "Download on Wi-Fi only", "Saves your mobile data.", wifiOnly) { wifiOnly = it; prefs.wifiOnly = it; DownloadQueue.settingsChanged() }
             Spacer(Modifier.height(14.dp))
             InfoRow(Icons.Rounded.Folder, "Saved to", "Download / VibeDownloader")
         }
@@ -73,9 +111,67 @@ fun SettingsScreen(prefs: Prefs) {
         Spacer(Modifier.height(20.dp))
         SectionLabel("App")
         GlassCard(Modifier.fillMaxWidth()) {
-            SwitchRow(Icons.Rounded.SystemUpdate, "Check for updates", "You choose when to install.", autoUpdate) { autoUpdate = it; prefs.autoUpdate = it }
+            SwitchRow(Icons.Rounded.SystemUpdate, "Automatic update checks", "You choose when to install.", autoUpdate) { autoUpdate = it; prefs.autoUpdate = it }
+            Spacer(Modifier.height(14.dp))
+            val s = update
+            val (updateHint, updateAction) = when (s) {
+                is AppUpdater.State.Checking -> "Checking..." to null
+                is AppUpdater.State.UpToDate -> "You have the latest version" to "Check"
+                is AppUpdater.State.Available -> "Version ${s.release.version} is ready" to "Update now"
+                is AppUpdater.State.Downloading -> "Downloading ${(s.progress * 100).toInt()}%" to null
+                is AppUpdater.State.NeedsPermission -> "Allow installs to finish the update" to "Update now"
+                is AppUpdater.State.Installing -> "Installing..." to null
+                is AppUpdater.State.Problem -> s.message to "Try again"
+                else -> "Version ${BuildConfig.VERSION_NAME}" to "Check"
+            }
+            ActionRow(Icons.Rounded.Update, "Check for updates", updateHint, updateAction, primary = s is AppUpdater.State.Available) {
+                scope.launch {
+                    if (s is AppUpdater.State.Available || s is AppUpdater.State.NeedsPermission) AppUpdater.downloadAndInstall(context)
+                    else AppUpdater.check(context)
+                }
+            }
+            AnimatedVisibility(s is AppUpdater.State.Downloading, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+                GradientProgressBar((s as? AppUpdater.State.Downloading)?.progress ?: 0f, Modifier.padding(top = 12.dp))
+            }
+            Spacer(Modifier.height(14.dp))
+            ActionRow(
+                Icons.Rounded.Memory, "Download engine",
+                when {
+                    engineBusy -> engineStatus ?: "Checking..."
+                    engineVersion != null -> "yt-dlp $engineVersion" + (engineStatus?.let { "  ·  $it" } ?: "")
+                    else -> "yt-dlp  ·  starting..."
+                },
+                if (engineBusy) null else "Update now",
+            ) {
+                engineBusy = true
+                scope.launch {
+                    withContext(Dispatchers.IO) { EngineUpdater.check(context) }
+                    engineBusy = false
+                }
+            }
             Spacer(Modifier.height(14.dp))
             InfoRow(Icons.Rounded.Info, "VibeDownloader for Android", "Version ${BuildConfig.VERSION_NAME}  ·  by VibeCoder AI")
+        }
+
+        Spacer(Modifier.height(20.dp))
+        SectionLabel("Help")
+        GlassCard(Modifier.fillMaxWidth()) {
+            ActionRow(Icons.Rounded.BugReport, "Send a report", "Shares a technical log to help fix a problem.", "Send") {
+                scope.launch {
+                    val file = withContext(Dispatchers.IO) { AppLog.buildReport(context) }
+                    runCatching {
+                        val uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
+                        val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                            .putExtra(Intent.EXTRA_STREAM, uri)
+                            .putExtra(Intent.EXTRA_SUBJECT, "VibeDownloader report")
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        send.clipData = ClipData.newRawUri("report", uri)
+                        context.startActivity(Intent.createChooser(send, "Send a report"))
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            ActionRow(Icons.Rounded.Gavel, "Licenses", "Open-source parts inside this app.", "View", onAction = onLicenses)
         }
         Spacer(Modifier.height(24.dp))
     }
@@ -121,6 +217,27 @@ private fun SwitchRow(icon: ImageVector, title: String, hint: String, checked: B
             colors = SwitchDefaults.colors(checkedThumbColor = androidx.compose.ui.graphics.Color.White, checkedTrackColor = Vd.Accent,
                 uncheckedThumbColor = Vd.Muted, uncheckedTrackColor = Vd.CardHi, uncheckedBorderColor = Vd.Line),
         )
+    }
+}
+
+@Composable
+private fun ActionRow(
+    icon: ImageVector, title: String, hint: String, action: String?, primary: Boolean = false, onAction: () -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconBadge(icon, size = 38)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = Vd.Text)
+            AnimatedContent(hint, transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }, label = "hint") { h ->
+                Text(h, style = MaterialTheme.typography.bodySmall, color = Vd.Muted)
+            }
+        }
+        if (action != null) {
+            Spacer(Modifier.width(10.dp))
+            if (primary) GradientButton(action, null, onAction, Modifier.width(130.dp))
+            else SoftButton(action, null, onAction)
+        }
     }
 }
 

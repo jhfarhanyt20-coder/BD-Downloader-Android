@@ -34,6 +34,13 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # Chaquopy needs the same Python version as the app (3.11) to install yt-dlp at build time
+      - name: Set up Python 3.11
+        id: py
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -57,6 +64,7 @@ jobs:
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          VD_BUILD_PYTHON: ${{ steps.py.outputs.python-path }}
         run: gradle :app:assembleRelease --no-daemon --stacktrace
 
       - name: Name the APK and write latest.json

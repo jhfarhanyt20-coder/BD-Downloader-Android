@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.chaquo.python")
 }
 
 // Version: set by CI from the git tag (v1.2.3 -> 1.2.3); local builds use the default.
@@ -21,6 +22,10 @@ android {
         targetSdk = 34
         versionCode = appVersionCode
         versionName = appVersionName
+        ndk {
+            // Python 3.11 is the newest version that still supports 32-bit phones
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
     // The signing key never lives in the repository. CI writes it from GitHub
@@ -63,6 +68,19 @@ android {
     }
 }
 
+// yt-dlp (Unlicense) runs inside the app through Chaquopy. The bundled copy is
+// installed at build time; the app can also fetch a newer verified copy itself.
+chaquopy {
+    defaultConfig {
+        version = "3.11"
+        // CI points this at the Python 3.11 it installs; otherwise Chaquopy finds one on PATH
+        System.getenv("VD_BUILD_PYTHON")?.takeIf { it.isNotBlank() }?.let { buildPython(it) }
+        pip {
+            install("yt-dlp")
+        }
+    }
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.09.03")
     implementation(composeBom)
@@ -77,4 +95,6 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    // HTTP client for the download engine (Apache-2.0)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

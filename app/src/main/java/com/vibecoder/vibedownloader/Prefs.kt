@@ -21,6 +21,26 @@ class Prefs(context: Context) {
     var autoUpdate: Boolean
         get() = sp.getBoolean("autoUpdate", true)
         set(v) = sp.edit().putBoolean("autoUpdate", v).apply()
+
+    /** When the app last looked for a new version of itself (ms). */
+    var lastAppUpdateCheck: Long
+        get() = sp.getLong("lastAppUpdateCheck", 0L)
+        set(v) = sp.edit().putLong("lastAppUpdateCheck", v).apply()
+
+    /** When the app last looked for a new yt-dlp (ms). */
+    var lastEngineCheck: Long
+        get() = sp.getLong("lastEngineCheck", 0L)
+        set(v) = sp.edit().putLong("lastEngineCheck", v).apply()
+
+    /** Path of the verified, downloaded yt-dlp copy in use (null = the bundled one). */
+    var engineZip: String?
+        get() = sp.getString("engineZip", null)
+        set(v) = sp.edit().putString("engineZip", v).apply()
+
+    /** The friendly "allow notifications" card was shown once. */
+    var askedNotifications: Boolean
+        get() = sp.getBoolean("askedNotifications", false)
+        set(v) = sp.edit().putBoolean("askedNotifications", v).apply()
 }
 
 /** Pulls the first http(s) link out of shared or pasted text ("Watch this: https://..."). */

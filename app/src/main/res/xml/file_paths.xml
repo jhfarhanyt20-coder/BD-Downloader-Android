@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Android 8 and 9: finished files in Download/VibeDownloader -->
+    <external-path name="downloads" path="Download/VibeDownloader/" />
+    <!-- "Send a report": the log copy shared from Settings -->
+    <cache-path name="reports" path="report/" />
+</paths>
