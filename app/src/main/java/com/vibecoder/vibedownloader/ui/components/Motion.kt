@@ -111,7 +111,7 @@ fun IndeterminateBar(modifier: Modifier = Modifier, height: Dp = 8.dp, soft: Boo
 fun Skeleton(modifier: Modifier = Modifier, corner: Dp = 10.dp) {
     val t = rememberInfiniteTransition(label = "skeleton")
     val a by t.animateFloat(0.35f, 0.8f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "a")
-    Box(modifier.clip(RoundedCornerShape(corner)).background(Vd.CardHi.copy(alpha = a)))
+    Box(modifier.clip(RoundedCornerShape(corner)).background((if (Vd.isDark) Vd.CardHi else Vd.Line).copy(alpha = a)))
 }
 
 /** A selectable pill (filters, qualities). */

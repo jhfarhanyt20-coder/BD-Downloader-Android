@@ -66,7 +66,7 @@ fun GradientButton(
         modifier
             .scale(scale)
             .clip(shape)
-            .background(if (enabled) Vd.AccentGradient else Brush.linearGradient(listOf(Vd.CardHi, Vd.CardHi)))
+            .background(if (enabled) Vd.AccentGradient else (if (Vd.isDark) Vd.CardHi else Vd.Line).let { Brush.linearGradient(listOf(it, it)) })
             .clickable(interactionSource = source, indication = null, enabled = enabled, onClick = onClick)
             .height(54.dp),
         contentAlignment = Alignment.Center,

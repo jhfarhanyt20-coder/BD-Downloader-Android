@@ -38,7 +38,8 @@ object Notifier {
     const val CHANNEL_RESULT = "finished"
     const val CHANNEL_BUBBLE = "bubble"
     const val FOREGROUND_ID = 1
-    const val SUMMARY_ID = 2
+    /** After the service stops, its notification stays as the quiet group summary (same id). */
+    const val SUMMARY_ID = FOREGROUND_ID
     const val BUBBLE_ID = 3
     const val GROUP = "com.vibecoder.vibedownloader.DOWNLOADS"
 
@@ -243,7 +244,6 @@ object Notifier {
             }
         }
         if (service) {
-            runCatching { nm.cancel(SUMMARY_ID) }
             runCatching { nm.notify(FOREGROUND_ID, foreground(context, items)) }
         } else {
             quietSummary(context)
@@ -256,19 +256,22 @@ object Notifier {
         sync(context, DownloadRepository.items.value, service = false)
     }
 
-    /** With the service gone, a plain summary keeps 2+ notifications neatly together. */
+    /**
+     * With the service gone, a plain summary keeps the remaining notifications together.
+     * (Removing a group summary also removes its children, so it is replaced, never removed, while any remain.)
+     */
     @SuppressLint("MissingPermission")
     private fun quietSummary(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
         val children = runCatching {
-            nm.activeNotifications.count { it.notification.group == GROUP && it.id != FOREGROUND_ID && it.id != SUMMARY_ID }
+            nm.activeNotifications.count { it.notification.group == GROUP && it.id != FOREGROUND_ID }
         }.getOrDefault(0)
-        if (children < 2) { runCatching { nm.cancel(SUMMARY_ID) }; return }
+        if (children < 1) { runCatching { nm.cancel(SUMMARY_ID) }; return }
         if (!canPost(context)) return
         val n = NotificationCompat.Builder(context, CHANNEL_RESULT)
             .setSmallIcon(R.drawable.ic_stat_download)
             .setContentTitle("VibeDownloader")
-            .setContentText("$children downloads")
+            .setContentText(if (children == 1) "1 download" else "$children downloads")
             .setGroup(GROUP)
             .setGroupSummary(true)
             .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)

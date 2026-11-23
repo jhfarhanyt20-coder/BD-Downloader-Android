@@ -320,6 +320,7 @@ private val QuickSites = listOf(
 fun BrowserScreen(state: BrowserState, onDownloadPage: (String) -> Unit) {
     val context = LocalContext.current
     val focus = LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     BackHandler(enabled = state.pageUrl != null) {
         if (state.canBack) state.back() else state.home()
     }
@@ -348,7 +349,7 @@ fun BrowserScreen(state: BrowserState, onDownloadPage: (String) -> Unit) {
                         textStyle = MaterialTheme.typography.bodyMedium.copy(color = Vd.Text),
                         cursorBrush = SolidColor(Vd.Accent2),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-                        keyboardActions = KeyboardActions(onGo = { state.open(state.address); focus.clearFocus() }),
+                        keyboardActions = KeyboardActions(onGo = { state.open(state.address); keyboard?.hide(); focus.clearFocus() }),
                         modifier = Modifier.fillMaxWidth()
                             .semantics { contentDescription = "Address bar" }
                             .onFocusChanged { f -> state.editing = f.isFocused },

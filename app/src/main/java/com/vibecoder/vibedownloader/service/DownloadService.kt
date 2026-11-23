@@ -79,7 +79,9 @@ class DownloadService : Service() {
 
     private fun finish() {
         running = false
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        // detach (not remove): removing the group summary would also wipe the "Download complete" ones;
+        // sync then turns it into a quiet summary, or removes it when nothing is left
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
         Notifier.sync(this, DownloadRepository.items.value, service = false)
         stopSelf()
     }

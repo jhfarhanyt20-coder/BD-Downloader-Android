@@ -51,7 +51,7 @@ sleep 6; shot share-sheet-duplicate
 adb shell input keyevent KEYCODE_BACK; sleep 2
 
 step "share text with 3 direct links: the multi-link queue"
-share "Files:\ https://proof.ovh.net/files/1Mb.dat\ https://proof.ovh.net/files/10Mb.dat\ https://proof.ovh.net/files/100Mb.dat"
+share "Files:\ https://proof.ovh.net/files/1Mb.dat\ https://proof.ovh.net/files/10Mb.dat\ https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
 sleep 6; shot share-sheet-multi
 tap "to queue" 3; shot share-sheet-multi-added
 adb shell am start -n "$PKG/.MainActivity" >/dev/null; sleep 3; tap "Downloads" 2; shot downloads-queue
@@ -61,11 +61,11 @@ adb shell cmd statusbar expand-notifications; sleep 2; shot notification-shade-m
 step "built-in browser: example.com, then a page with direct file links"
 tap "Browser" 2
 tap "Address bar" 1; adb shell input text "https://example.com"; adb shell input keyevent 66
-sleep 8; shot browser-example
+sleep 10; shot browser-example
 tap "Address bar" 1; tap "Clear address" 1; adb shell input text "https://proof.ovh.net/files/"; adb shell input keyevent 66
-sleep 8; shot browser-file-list
-if python3 tools/ui_tap.py "1Mb.dat"; then sleep 6; else
-  tap "Address bar" 1; tap "Clear address" 1; adb shell input text "https://proof.ovh.net/files/1Mb.dat"; adb shell input keyevent 66; sleep 6
+sleep 15; shot browser-file-list
+if python3 tools/ui_tap.py "1Mb.dat"; then sleep 10; else
+  tap "Address bar" 1; tap "Clear address" 1; adb shell input text "https://proof.ovh.net/files/1Mb.dat"; adb shell input keyevent 66; sleep 12
 fi
 shot browser-download-sheet
 adb shell input keyevent KEYCODE_BACK; sleep 2
