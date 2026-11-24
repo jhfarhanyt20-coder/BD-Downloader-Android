@@ -24,6 +24,13 @@ step "launch"
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
 sleep 6; shot launch
 
+step "running in the background: one notification with Stop, also after leaving the app"
+adb shell input keyevent KEYCODE_HOME; sleep 3
+adb shell dumpsys activity services com.vibecoder.vibedownloader | grep -E "ServiceRecord|isForeground" | head -6 > "$OUT/background-service.txt" || true
+cat "$OUT/background-service.txt"
+adb shell cmd statusbar expand-notifications; sleep 2; shot background-notification; adb shell cmd statusbar collapse
+adb shell am start -n "$PKG/.MainActivity" >/dev/null; sleep 3
+
 step "screens (4 tabs)"
 tap "New";       shot new-page
 tap "Browser";   shot browser-home
