@@ -13,7 +13,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
             ACTION_PAUSE -> if (id == ALL) DownloadQueue.pauseAll() else DownloadQueue.pause(id)
             ACTION_CANCEL -> if (id == ALL) DownloadQueue.cancelAll() else { Notifier.clearId(context, id); DownloadQueue.cancel(id) }
             ACTION_RESUME, ACTION_RETRY -> { Notifier.clearId(context, id); DownloadQueue.resume(id) }
-            ACTION_BUBBLE_OFF -> { Prefs(context).smartButton = false; BubbleService.stop(context) }
+            // "Stop" on the background notification: closes it now; it runs again the next time the app is opened
+            ACTION_BUBBLE_OFF -> BubbleService.stop(context)
         }
     }
 

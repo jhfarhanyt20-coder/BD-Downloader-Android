@@ -52,6 +52,11 @@ class Prefs(context: Context) {
         get() = sp.getString("themeMode", null)
         set(v) = sp.edit().putString("themeMode", v).apply()
 
+    /** Keep VibeDownloader running in the background (a notification shows it, with Stop). On by default. */
+    var keepRunning: Boolean
+        get() = sp.getBoolean("keepRunning", true)
+        set(v) = sp.edit().putBoolean("keepRunning", v).apply()
+
     /** The smart floating download button is turned on. */
     var smartButton: Boolean
         get() = sp.getBoolean("smartButton", false)

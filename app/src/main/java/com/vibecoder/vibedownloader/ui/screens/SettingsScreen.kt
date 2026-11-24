@@ -145,6 +145,12 @@ fun SettingsScreen(prefs: Prefs, onLicenses: () -> Unit = {}) {
         GlassCard(Modifier.fillMaxWidth()) {
             SwitchRow(Icons.Rounded.Wifi, "Download on Wi-Fi only", "Saves your mobile data.", wifiOnly) { wifiOnly = it; prefs.wifiOnly = it; DownloadQueue.settingsChanged() }
             Spacer(Modifier.height(14.dp))
+            // stays ready in the background (shown in the notification, with Stop), even after the app is closed
+            var keepRunning by remember { mutableStateOf(prefs.keepRunning) }
+            SwitchRow(Icons.Rounded.Layers, "Keep running in the background", "Ready even when the app is closed. Stop it from the notification any time.", keepRunning) {
+                keepRunning = it; prefs.keepRunning = it; com.vibecoder.vibedownloader.service.BubbleService.refresh(context)
+            }
+            Spacer(Modifier.height(14.dp))
             // the user can pick any folder (phone storage or SD card); the default is Download/VibeDownloader
             var folder by remember { mutableStateOf(com.vibecoder.vibedownloader.engine.MediaSaver.folderLabel(context)) }
             var custom by remember { mutableStateOf(com.vibecoder.vibedownloader.engine.MediaSaver.usableFolder(context) != null) }
@@ -353,7 +359,7 @@ private fun SmartButtonCard(prefs: Prefs) {
                 wanted = false
                 on = true
                 prefs.smartButton = true
-                BubbleService.start(context)
+                BubbleService.refresh(context)
             }
         }
     }
@@ -370,7 +376,7 @@ private fun SmartButtonCard(prefs: Prefs) {
                         else -> next()
                     }
                 }
-                if (on && !BubbleService.ready(context)) { on = false; prefs.smartButton = false; BubbleService.stop(context) }
+                if (on && !BubbleService.ready(context)) { on = false; prefs.smartButton = false; BubbleService.refresh(context) }
             }
         }
         owner.lifecycle.addObserver(obs)
@@ -383,7 +389,7 @@ private fun SmartButtonCard(prefs: Prefs) {
             "A small floating button that appears only when it can help.", on,
         ) { v ->
             if (v) { wanted = true; askedUsage = false; next() }
-            else { on = false; wanted = false; prefs.smartButton = false; BubbleService.stop(context) }
+            else { on = false; wanted = false; prefs.smartButton = false; BubbleService.refresh(context) }
         }
         Spacer(Modifier.height(12.dp))
         Row(

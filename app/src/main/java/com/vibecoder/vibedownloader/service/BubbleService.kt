@@ -98,7 +98,14 @@ class BubbleService : Service() {
     override fun onCreate() {
         super.onCreate()
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        val hint = if (usesClipboard) "Appears when you copy a video link" else "Appears while a video app or browser is open"
+        // One service keeps VibeDownloader running in the background (one notification, with Stop),
+        // and hosts the smart download button when that is turned on.
+        smart = Prefs(this).smartButton && ready(this)
+        val hint = when {
+            !smart -> "Ready for your next download. Tap Stop to close it."
+            usesClipboard -> "Smart button: appears when you copy a video link"
+            else -> "Smart button: appears while a video app or browser is open"
+        }
         try {
             val type = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
             ServiceCompat.startForeground(this, Notifier.BUBBLE_ID, Notifier.bubble(this, hint), type)
@@ -108,7 +115,7 @@ class BubbleService : Service() {
             return
         }
         running = true
-        if (usesClipboard) watchClipboard() else watchScreen()
+        if (smart) { if (usesClipboard) watchClipboard() else watchScreen() }
         // a tiny progress ring while downloads run
         scope.launch {
             DownloadRepository.items.collectLatest { items ->
@@ -121,11 +128,12 @@ class BubbleService : Service() {
                 bubble?.progress = p
             }
         }
-        AppLog.i("bubble", "Smart button on (${if (usesClipboard) "copied links" else "video apps"})")
+        AppLog.i("bubble", if (smart) "Running in the background, smart button on (${if (usesClipboard) "copied links" else "video apps"})" else "Running in the background")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (!Settings.canDrawOverlays(this) || !Prefs(this).smartButton) { stopSelf(); return START_NOT_STICKY }
+        if (intent?.action == ACTION_STOP) { stopSelf(); return START_NOT_STICKY }
+        if (!wanted(this)) { stopSelf(); return START_NOT_STICKY }
         return START_STICKY
     }
 
@@ -380,8 +388,17 @@ class BubbleService : Service() {
         super.onDestroy()
     }
 
+    private var smart = false
+
     companion object {
+        const val ACTION_STOP = "com.vibecoder.vibedownloader.STOP_BACKGROUND"
         @Volatile private var running = false
+
+        /** Run in the background (the default), or for the smart button. */
+        fun wanted(context: Context): Boolean {
+            val p = Prefs(context)
+            return p.keepRunning || (p.smartButton && ready(context))
+        }
         val isRunning: Boolean get() = running
 
         /** Android 10+ needs "Usage access" to know which app is open. */
@@ -415,7 +432,13 @@ class BubbleService : Service() {
         }
 
         fun startIfEnabled(context: Context) {
-            if (Prefs(context).smartButton && ready(context) && !running) start(context)
+            if (wanted(context) && !running) start(context)
+        }
+
+        /** After a setting changed: start again with the new settings (or stop if nothing needs it). */
+        fun refresh(context: Context) {
+            stop(context)
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ startIfEnabled(context) }, 400)
         }
 
         fun stop(context: Context) {

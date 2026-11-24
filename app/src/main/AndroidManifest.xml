@@ -78,7 +78,7 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Floating download button shown over video apps while the user turned it on; tapping it opens the download sheet." />
+                android:value="Keeps the download manager ready in the background (shown in a notification with Stop) and hosts the optional floating download button over video apps." />
         </service>
 
         <receiver

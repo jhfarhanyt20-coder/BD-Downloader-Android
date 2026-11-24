@@ -64,7 +64,7 @@ object Notifier {
             }
         )
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_BUBBLE, "Smart download button", NotificationManager.IMPORTANCE_MIN).apply {
+            NotificationChannel(CHANNEL_BUBBLE, "Running in the background", NotificationManager.IMPORTANCE_MIN).apply {
                 description = "Shown while the floating download button is turned on"
                 setShowBadge(false)
             }
@@ -349,13 +349,13 @@ object Notifier {
         )
         return NotificationCompat.Builder(context, CHANNEL_BUBBLE)
             .setSmallIcon(R.drawable.ic_stat_download)
-            .setContentTitle("Smart download button is on")
+            .setContentTitle("VibeDownloader is running in the background")
             .setContentText(hint)
             .setOngoing(true)
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_MIN)
             .setContentIntent(openApp(context))
-            .addAction(0, "Turn off", off)
+            .addAction(0, "Stop", off)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }
