@@ -66,6 +66,18 @@ jobs:
           VD_BUILD_PYTHON: ${{ steps.py.outputs.python-path }}
         run: gradle :app:assembleRelease --no-daemon --stacktrace
 
+      # Only the last three releases keep working: an app older than the third-newest
+      # release shows "Update required" until it is updated.
+      - name: Oldest version still allowed (the last three releases)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tags=$( (gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName' 2>/dev/null || true; echo "v${APP_VERSION}") \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' | sort -t. -k1,1n -k2,2n -k3,3n -u)
+          min=$(echo "$tags" | tail -n 3 | head -n 1)
+          echo "MIN_VERSION=${min:-$APP_VERSION}" >> "$GITHUB_ENV"
+          echo "Releases: $(echo $tags) -> oldest allowed ${min:-$APP_VERSION}"
+
       - name: Name the APK and write latest.json
         run: |
           mkdir -p out
@@ -73,8 +85,8 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "$apk"
           sha=$(sha256sum "$apk" | cut -d' ' -f1)
           size=$(stat -c %s "$apk")
-          printf '{\n  "version": "%s",\n  "url": "https://github.com/%s/releases/download/v%s/VibeDownloader-%s.apk",\n  "size": %s,\n  "sha256": "%s"\n}\n' \
-            "$APP_VERSION" "$GITHUB_REPOSITORY" "$APP_VERSION" "$APP_VERSION" "$size" "$sha" > out/latest.json
+          printf '{\n  "version": "%s",\n  "url": "https://github.com/%s/releases/download/v%s/VibeDownloader-%s.apk",\n  "size": %s,\n  "sha256": "%s",\n  "min_version": "%s"\n}\n' \
+            "$APP_VERSION" "$GITHUB_REPOSITORY" "$APP_VERSION" "$APP_VERSION" "$size" "$sha" "$MIN_VERSION" > out/latest.json
           cat out/latest.json
           rm -f "$SIGNING_STORE_FILE"
 

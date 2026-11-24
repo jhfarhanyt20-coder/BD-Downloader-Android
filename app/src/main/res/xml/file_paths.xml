@@ -4,4 +4,6 @@
     <external-path name="downloads" path="Download/VibeDownloader/" />
     <!-- "Send a report": the log copy shared from Settings -->
     <cache-path name="reports" path="report/" />
+    <!-- a downloaded app update, handed to the phone's own installer -->
+    <cache-path name="update" path="update/" />
 </paths>

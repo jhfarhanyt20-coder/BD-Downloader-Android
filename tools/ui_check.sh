@@ -95,6 +95,18 @@ shot share-sheet-youtube
 tap "Audio only" 2; tap "Download" 4; shot share-sheet-youtube-after
 adb shell input keyevent KEYCODE_BACK; sleep 1
 
+step "app update: the test build (0.0.x) finds the real release, downloads it, and the phone's own installer opens"
+adb shell appops set "$PKG" REQUEST_INSTALL_PACKAGES allow 2>/dev/null || true
+adb shell am start -n "$PKG/.MainActivity" >/dev/null; sleep 3
+tap "Settings" 2
+for i in 1 2 3 4 5 6; do python3 tools/ui_tap.py --exists "Check for updates" && break; adb shell input swipe 540 1800 540 700 300; sleep 1; done
+tap "Check" 8; shot update-checked
+tap "Update now" 3
+for i in $(seq 1 30); do sleep 4; python3 tools/ui_tap.py --exists "Install now" && break; done
+shot update-downloaded
+tap "Install now" 5; shot update-system-installer
+adb shell input keyevent KEYCODE_BACK; sleep 3; shot update-after-cancel
+
 step "files saved"
 adb shell ls -la /sdcard/Download/VibeDownloader/ > "$OUT/saved-files.txt" 2>&1 || true
 cat "$OUT/saved-files.txt"

@@ -240,6 +240,21 @@ object AppUpdater {
             return
         }
         _state.value = State.Installing(release)
+        // The phone's own installer screen, opened straight from the user's tap. (A confirmation
+        // started later from the background is blocked on new Android versions; this never is.)
+        try {
+            val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".files", apk)
+            val view = Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (view.resolveActivity(context.packageManager) != null) {
+                context.startActivity(view)
+                AppLog.i("update", "Opened the system installer for ${release.version}")
+                return
+            }
+        } catch (e: Exception) {
+            AppLog.w("update", "System installer did not open, using the package installer session", e)
+        }
         try {
             val installer = context.packageManager.packageInstaller
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
@@ -282,10 +297,44 @@ object AppUpdater {
         }
     }
 
-    /** After the user came back from the "Install unknown apps" page. */
-    suspend fun continueAfterPermission(context: Context): Unit = withContext(Dispatchers.IO) {
+    /** After the user came back from the "Install unknown apps" page, or closed the installer without installing. */
+    suspend fun continueAfterPermission(context: Context): Unit = withContext(Dispatchers.Main) {
         val s = _state.value
         if (s is State.NeedsPermission && canInstall(context)) install(context, s.release, s.apk)
+        else if (s is State.Installing) {
+            // still the old version: the user backed out of the installer, so offer "Install now" again
+            val apk = File(File(context.cacheDir, "update"), "VibeDownloader-${s.release.version}.apk")
+            _state.value = if (apk.exists()) State.Ready(s.release, apk) else State.Available(s.release)
+        }
+    }
+
+    // ---- versions too old to keep working ----
+    // Every release says which is the oldest version still allowed (the last three releases).
+    // An older app shows only "Update required" until it is updated. The last answer is kept,
+    // so it also holds without internet.
+    private val _required = MutableStateFlow<String?>(null)
+    /** Non-null = this version is too old; the value is the oldest version still allowed. */
+    val required: StateFlow<String?> = _required
+
+    fun loadRequired(context: Context) {
+        val min = Prefs(context).minAppVersion
+        _required.value = if (min != null && isNewer(min, BuildConfig.VERSION_NAME)) min else null
+    }
+
+    /** On every start: a light check of latest.json, only for the oldest allowed version. */
+    suspend fun checkRequired(context: Context): Unit = withContext(Dispatchers.IO) {
+        try {
+            val json = SafeFetch.open(LATEST, SafeFetch.githubAllow(REPO)).use { it.body?.string() ?: "" }
+            val min = JSONObject(json).optString("min_version").trim().removePrefix("v").ifBlank { null }
+            Prefs(context).minAppVersion = min
+            loadRequired(context)
+            if (_required.value != null) {
+                AppLog.w("update", "This version is too old (oldest allowed $min): update required")
+                if (_state.value is State.Idle || _state.value is State.UpToDate) check(context, quiet = true)
+            }
+        } catch (e: Exception) {
+            AppLog.w("update", "Could not check the oldest allowed version", e)
+        }
     }
 
     fun dismissProblem() {

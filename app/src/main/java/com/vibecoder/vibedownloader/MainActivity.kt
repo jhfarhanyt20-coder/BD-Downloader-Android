@@ -114,9 +114,15 @@ class MainActivity : ComponentActivity() {
         applySystemBars(Vd.isDark)
         readShare(intent)
         val prefs = Prefs(this)
+        // a version more than three releases old works only to update itself
+        AppUpdater.loadRequired(this)
+        lifecycleScope.launch { AppUpdater.checkRequired(this@MainActivity) }
         setContent {
             VibeTheme {
-                App(prefs, sharedLink.value, { sharedLink.value = null }, showId.value) { showId.value = null }
+                val required by AppUpdater.required.collectAsStateWithLifecycle()
+                val oldest = required
+                if (oldest != null) com.vibecoder.vibedownloader.update.UpdateRequiredScreen(oldest)
+                else App(prefs, sharedLink.value, { sharedLink.value = null }, showId.value) { showId.value = null }
             }
         }
         BubbleService.startIfEnabled(this)

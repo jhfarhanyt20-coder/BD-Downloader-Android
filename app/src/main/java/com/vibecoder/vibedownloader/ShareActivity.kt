@@ -36,6 +36,13 @@ class ShareActivity : ComponentActivity() {
             finish()
             return
         }
+        // too old to keep working: open the app, which shows only "Update required"
+        com.vibecoder.vibedownloader.update.AppUpdater.loadRequired(this)
+        if (com.vibecoder.vibedownloader.update.AppUpdater.required.value != null) {
+            startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            finishQuietly()
+            return
+        }
         val prefs = Prefs(this)
         setContent {
             VibeTheme(translucent = true) {

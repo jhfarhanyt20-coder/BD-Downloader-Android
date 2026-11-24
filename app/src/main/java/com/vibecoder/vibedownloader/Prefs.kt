@@ -71,6 +71,11 @@ class Prefs(context: Context) {
         get() = sp.getString("batchQuality", "best") ?: "best"
         set(v) = sp.edit().putString("batchQuality", v).apply()
 
+    /** The oldest app version the latest release still allows (older apps must update). */
+    var minAppVersion: String?
+        get() = sp.getString("minAppVersion", null)
+        set(v) = sp.edit().putString("minAppVersion", v).apply()
+
     /** The friendly "allow notifications" card was shown once. */
     var askedNotifications: Boolean
         get() = sp.getBoolean("askedNotifications", false)
