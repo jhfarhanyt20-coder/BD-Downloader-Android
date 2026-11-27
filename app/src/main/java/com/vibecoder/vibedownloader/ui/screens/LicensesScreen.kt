@@ -64,7 +64,7 @@ fun LicensesScreen(onBack: () -> Unit) {
                     "page or website for your own personal use. You may not copy, modify, decompile, re-sign, repackage, rebrand, " +
                     "upload to any app store or website, sell or redistribute it, or use its code or design to build or train anything " +
                     "else. You are responsible for only downloading content you have the right to download. " +
-                    "Full text: github.com/jhfarhanyt20-coder/VibeDownloader-Android/blob/main/LICENSE",
+                    "Full text: github.com/jhfarhanyt20-coder/BD-Downloader-Android/blob/main/LICENSE",
                 style = MaterialTheme.typography.bodySmall, color = Vd.Muted,
             )
         }

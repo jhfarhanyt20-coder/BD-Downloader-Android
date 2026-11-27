@@ -2,7 +2,7 @@
 
 *Formerly VibeDownloader for Android. Same app, new name.*
 
-The phone version of [BD Downloader](https://github.com/jhfarhanyt20-coder/VibeDownloader): a fast download manager for Android 8 and newer, with the same dark design as the Windows app.
+The phone version of [BD Downloader](https://github.com/jhfarhanyt20-coder/BD-Downloader): a fast download manager for Android 8 and newer, with the same dark design as the Windows app.
 
 
 ## Install

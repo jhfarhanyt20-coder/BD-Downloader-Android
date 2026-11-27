@@ -27,7 +27,7 @@ import java.io.IOException
  * It never installs an older or equal version.
  */
 object AppUpdater {
-    private const val REPO = "/jhfarhanyt20-coder/VibeDownloader-Android/"
+    private const val REPO = "/jhfarhanyt20-coder/BD-Downloader-Android/"
     private const val LATEST = "https://github.com${REPO}releases/latest/download/latest.json"
     private const val INTERVAL = 12L * 60 * 60 * 1000
     private const val MAX_APK = 300L * 1024 * 1024
