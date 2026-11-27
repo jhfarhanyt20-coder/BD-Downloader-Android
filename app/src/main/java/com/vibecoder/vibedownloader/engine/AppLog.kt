@@ -72,7 +72,7 @@ object AppLog {
         val f = File(out, "VibeDownloader-report.txt")
         val d = dir
         val text = buildString {
-            append("VibeDownloader for Android ").append(BuildConfig.VERSION_NAME).append('\n')
+            append("BD Downloader for Android ").append(BuildConfig.VERSION_NAME).append('\n')
             append("Android ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(")\n")
             append("Device: ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append('\n')
             append("Engine: yt-dlp ").append(MediaEngine.version.value ?: "not started").append('\n')

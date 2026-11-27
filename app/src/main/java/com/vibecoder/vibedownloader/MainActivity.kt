@@ -203,7 +203,7 @@ private fun App(prefs: Prefs, sharedLink: String?, onSharedLinkUsed: () -> Unit,
         val next = pendingStart
         pendingStart = null
         if (granted) next?.let { startWithPermissions(context, prefs, it, { a -> pendingStart = a }, { askNotifications = true }, null) }
-        else Toast.makeText(context, "VibeDownloader needs storage access to save files in Downloads", Toast.LENGTH_LONG).show()
+        else Toast.makeText(context, "BD Downloader needs storage access to save files in Downloads", Toast.LENGTH_LONG).show()
     }
     val requestStart: (() -> Unit) -> Unit = { action ->
         startWithPermissions(context, prefs, action, { a -> pendingStart = a }, { askNotifications = true }) {
@@ -337,7 +337,7 @@ private fun InstallPermissionSheet() {
                 Text("One quick step", style = MaterialTheme.typography.titleLarge, color = Vd.Text)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "To install version ${s.release.version}, Android asks you to allow VibeDownloader to install apps. " +
+                    "To install version ${s.release.version}, Android asks you to allow BD Downloader to install apps. " +
                         "Turn on \"Allow from this source\", then come back - the update continues by itself.",
                     style = MaterialTheme.typography.bodyMedium, color = Vd.Muted,
                 )

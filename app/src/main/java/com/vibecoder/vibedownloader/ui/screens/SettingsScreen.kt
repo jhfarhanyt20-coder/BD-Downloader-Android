@@ -235,7 +235,7 @@ fun SettingsScreen(prefs: Prefs, onLicenses: () -> Unit = {}) {
                 }
             }
             Spacer(Modifier.height(14.dp))
-            InfoRow(Icons.Rounded.Info, "VibeDownloader for Android", "Version ${BuildConfig.VERSION_NAME}  ·  by VibeCoder AI")
+            InfoRow(Icons.Rounded.Info, "BD Downloader for Android", "Version ${BuildConfig.VERSION_NAME}  ·  by VibeCoder AI")
         }
 
         Spacer(Modifier.height(20.dp))
@@ -248,7 +248,7 @@ fun SettingsScreen(prefs: Prefs, onLicenses: () -> Unit = {}) {
                         val uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain")
                             .putExtra(Intent.EXTRA_STREAM, uri)
-                            .putExtra(Intent.EXTRA_SUBJECT, "VibeDownloader report")
+                            .putExtra(Intent.EXTRA_SUBJECT, "BD Downloader report")
                             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         send.clipData = ClipData.newRawUri("report", uri)
                         context.startActivity(Intent.createChooser(send, "Send a report"))
@@ -413,7 +413,7 @@ private fun SmartButtonCard(prefs: Prefs) {
         "overlay" -> ExplainDialog(
             Icons.Rounded.Layers, "Show the button over other apps",
             "To float over YouTube and other apps, Android needs \"Display over other apps\" turned on for VibeDownloader. " +
-                "On the next page, find VibeDownloader and switch it on, then come back.",
+                "On the next page, find BD Downloader and switch it on, then come back.",
             onOk = {
                 ask = null
                 runCatching {
@@ -425,8 +425,8 @@ private fun SmartButtonCard(prefs: Prefs) {
         )
         "usage" -> ExplainDialog(
             Icons.Rounded.Visibility, "Know when a video app is open",
-            "VibeDownloader only checks which app is open, never what is on your screen. " +
-                "On the next page, find VibeDownloader and allow \"Usage access\", then come back.",
+            "BD Downloader only checks which app is open, never what is on your screen. " +
+                "On the next page, find BD Downloader and allow \"Usage access\", then come back.",
             onOk = {
                 ask = null
                 askedUsage = true

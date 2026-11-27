@@ -139,7 +139,7 @@ object Notifier {
             active.size > 1 -> "Downloading ${active.size} files"
             waiting.size == 1 -> name(waiting[0])
             waiting.isNotEmpty() -> "${waiting.size} downloads waiting"
-            else -> "VibeDownloader"
+            else -> "BD Downloader"
         }
         val speed = active.sumOf { it.speed }
         val text = listOfNotNull(
@@ -285,7 +285,7 @@ object Notifier {
         if (!canPost(context)) return
         val n = NotificationCompat.Builder(context, CHANNEL_RESULT)
             .setSmallIcon(R.drawable.ic_stat_download)
-            .setContentTitle("VibeDownloader")
+            .setContentTitle("BD Downloader")
             .setContentText(if (children == 1) "1 download" else "$children downloads")
             .setGroup(GROUP)
             .setGroupSummary(true)
@@ -364,7 +364,7 @@ object Notifier {
         )
         return NotificationCompat.Builder(context, CHANNEL_BUBBLE)
             .setSmallIcon(R.drawable.ic_stat_download)
-            .setContentTitle("VibeDownloader is running in the background")
+            .setContentTitle("BD Downloader is running in the background")
             .setContentText(hint)
             .setOngoing(true)
             .setSilent(true)

@@ -242,7 +242,7 @@ class BubbleService : Service() {
             }
             bubbleParams = p
             v.setOnTouchListener(DragHandler())
-            v.contentDescription = "Download with VibeDownloader"
+            v.contentDescription = "Download with BD Downloader"
             bubble = v
         }
         if (!shown) {

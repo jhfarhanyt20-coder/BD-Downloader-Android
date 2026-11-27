@@ -154,7 +154,7 @@ fun DownloadSheet(
             } else { pending?.invoke(); pending = null }
         } else {
             pending = null
-            Toast.makeText(context, "VibeDownloader needs storage access to save files in Downloads", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "BD Downloader needs storage access to save files in Downloads", Toast.LENGTH_LONG).show()
         }
     }
     fun withPermissions(action: () -> Unit) {
@@ -224,7 +224,7 @@ fun DownloadSheet(
                     ) { Icon(Icons.Rounded.Download, null, tint = Color.White, modifier = Modifier.size(20.dp)) }
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("VibeDownloader", style = MaterialTheme.typography.titleMedium, color = Vd.Text)
+                        Text("BD Downloader", style = MaterialTheme.typography.titleMedium, color = Vd.Text)
                         val sub = when (stage) {
                             "many" -> "${links.size} links"
                             "none" -> "Paste a link to download"
@@ -272,7 +272,7 @@ fun DownloadSheet(
                     ) {
                         Icon(Icons.Rounded.OpenInNew, null, tint = Vd.Muted, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Open VibeDownloader", style = MaterialTheme.typography.bodyMedium, color = Vd.Muted)
+                        Text("Open BD Downloader", style = MaterialTheme.typography.bodyMedium, color = Vd.Muted)
                     }
                 }
             }

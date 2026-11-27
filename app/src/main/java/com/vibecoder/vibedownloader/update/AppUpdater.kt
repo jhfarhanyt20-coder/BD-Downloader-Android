@@ -134,7 +134,7 @@ object AppUpdater {
             )
             val n = androidx.core.app.NotificationCompat.Builder(context, com.vibecoder.vibedownloader.service.Notifier.CHANNEL_RESULT)
                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                .setContentTitle("VibeDownloader ${s.release.version} is ready")
+                .setContentTitle("BD Downloader ${s.release.version} is ready")
                 .setContentText("Tap to install the new version.")
                 .setContentIntent(open)
                 .setAutoCancel(true)

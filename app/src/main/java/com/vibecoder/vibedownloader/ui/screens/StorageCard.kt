@@ -98,7 +98,7 @@ fun StorageCard() {
                     IconBadge(Icons.Rounded.DownloadDone, size = 38)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("VibeDownloader files", style = MaterialTheme.typography.titleMedium, color = Vd.Text)
+                        Text("BD Downloader files", style = MaterialTheme.typography.titleMedium, color = Vd.Text)
                         Text(
                             if (i.files == 0) "Nothing saved yet" else "${formatBytes(i.downloads)} in ${i.files} file${if (i.files == 1) "" else "s"}",
                             style = MaterialTheme.typography.bodySmall, color = Vd.Muted,

@@ -56,7 +56,7 @@ fun LicensesScreen(onBack: () -> Unit) {
         }
         // the app's own license first: proprietary, all rights reserved
         GlassCard(Modifier.fillMaxWidth(), padding = 16) {
-            Text("VibeDownloader for Android", style = MaterialTheme.typography.titleMedium, color = Vd.Text)
+            Text("BD Downloader for Android", style = MaterialTheme.typography.titleMedium, color = Vd.Text)
             Text("Proprietary license · All rights reserved", style = MaterialTheme.typography.labelMedium, color = Vd.Accent2)
             Spacer(Modifier.height(6.dp))
             Text(

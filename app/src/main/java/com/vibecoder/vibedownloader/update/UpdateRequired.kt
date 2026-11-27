@@ -64,7 +64,7 @@ fun UpdateRequiredScreen(oldestAllowed: String) {
             Text("Update required", style = MaterialTheme.typography.headlineMedium, color = Vd.Text, textAlign = TextAlign.Center)
             Spacer(Modifier.height(8.dp))
             Text(
-                "This version of VibeDownloader (${BuildConfig.VERSION_NAME}) is no longer supported. " +
+                "This version of BD Downloader (${BuildConfig.VERSION_NAME}) is no longer supported. " +
                     "Install the latest version to keep downloading. Your downloads and settings stay.",
                 style = MaterialTheme.typography.bodyMedium, color = Vd.Muted, textAlign = TextAlign.Center,
             )

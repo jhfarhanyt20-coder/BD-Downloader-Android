@@ -85,7 +85,7 @@ suspend fun openDownloaded(context: Context, item: DownloadItem) {
     }
     val apk = Category.of(item) == Category.Apk
     if (apk && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
-        Toast.makeText(context, "Allow VibeDownloader to install apps, then tap Open again", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, "Allow BD Downloader to install apps, then tap Open again", Toast.LENGTH_LONG).show()
         runCatching {
             context.startActivity(
                 Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))
