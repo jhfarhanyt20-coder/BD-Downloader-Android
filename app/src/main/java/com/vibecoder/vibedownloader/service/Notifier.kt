@@ -35,7 +35,9 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object Notifier {
     const val CHANNEL_PROGRESS = "downloads"
-    const val CHANNEL_RESULT = "finished"
+    /** Finished / failed / update ready. A new id: a channel's sound can only be set when it is created. */
+    const val CHANNEL_RESULT = "finished_quiet"
+    private const val OLD_CHANNEL_RESULT = "finished"
     const val CHANNEL_BUBBLE = "bubble"
     const val FOREGROUND_ID = 1
     /** After the service stops, its notification stays as the quiet group summary (same id). */
@@ -58,9 +60,22 @@ object Notifier {
                 setShowBadge(false)
             }
         )
+        // Quiet, like every VibeCoder app: VibeDownloader's own soft two-note chime
+        // instead of the phone's default sound, no vibration, and a short pop-up
+        // that slides away by itself (the note stays in the shade for Open / Share).
+        runCatching { nm.deleteNotificationChannel(OLD_CHANNEL_RESULT) }
+        val chime = android.net.Uri.parse("android.resource://${context.packageName}/${R.raw.vibe_chime}")
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_RESULT, "Finished downloads", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            NotificationChannel(CHANNEL_RESULT, "Finished downloads", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "When a download is ready, or could not finish"
+                setSound(
+                    chime,
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build(),
+                )
+                enableVibration(false)
             }
         )
         nm.createNotificationChannel(
